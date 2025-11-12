@@ -64,6 +64,19 @@ nav {
     color: #667eea;
 }
 
+.nav-links a.staff-login {
+    background: #667eea;
+    color: white !important;
+    padding: 10px 20px;
+    border-radius: 25px;
+    transition: background 0.3s;
+}
+
+.nav-links a.staff-login:hover {
+    background: #764ba2;
+    color: white;
+}
+
 /* Page Management */
 .page {
     display: none;

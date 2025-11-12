@@ -1,0 +1,28 @@
+# Django Core
+Django>=4.2.0,<5.0.0
+
+# Django REST Framework
+djangorestframework>=3.14.0
+djangorestframework-simplejwt>=5.2.0
+
+# Django Channels (for WebSocket support)
+channels>=4.0.0
+channels-redis>=4.1.0
+daphne>=4.0.0
+
+# CORS Support
+django-cors-headers>=4.0.0
+
+# Database Drivers
+mysql-connector-python>=8.0.33
+PyMySQL>=1.1.0
+
+# Security & Authentication
+bcrypt>=4.0.1
+
+# ASGI Support (usually included with Django but explicit is better)
+asgiref>=3.7.0
+
+# Additional utilities
+redis>=5.0.0
+

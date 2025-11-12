@@ -35,6 +35,8 @@ TravelSuite is a comprehensive bus booking management system developed in partne
 
 ## 🛠️ Installation
 
+### Backend Setup (Django)
+
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
@@ -43,29 +45,41 @@ TravelSuite is a comprehensive bus booking management system developed in partne
 
 2. **Install Python dependencies**
    ```bash
-   pip install mysql-connector-python bcrypt
+   pip install -r requirements.txt
    ```
 
-3. **Set up MySQL Database**
-   - Ensure MySQL Server is running
-   - Create a MySQL user (or use existing credentials)
-   - Update database credentials in `real_database.py` and `booking_system.py`:
-     ```python
-     DB_HOST = "localhost"
-     DB_USER = "app_user"
-     DB_PASSWORD = "AppUser@123"
-     DB_NAME = "transport_payments_db"
-     ```
-
-4. **Initialize the database**
+3. **Initialize the database**
    ```bash
-   python real_database.py
+   python manage.py migrate
+   python manage.py createsuperuser
    ```
-   This will:
-   - Create the database schema
-   - Set up all required tables
-   - Insert default admin and operator accounts
-   - Add sample routes and buses
+
+4. **Run the Django development server**
+   ```bash
+   python manage.py runserver
+   ```
+   - Backend API: `http://localhost:8000/api/`
+   - Admin Dashboard: `http://localhost:8000/admin/`
+
+### Database Configuration
+
+**Current**: SQLite (for development)
+
+**For Production**: Configure MySQL in `config/settings.py`:
+```python
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'travel_suite_db',
+        'USER': 'your_mysql_user',
+        'PASSWORD': 'your_mysql_password',
+        'HOST': 'localhost',
+        'PORT': '3306',
+    }
+}
+```
+
+See **BACKEND_SETUP.md** for detailed backend documentation.
 
 ## 🚦 Usage
 
