@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Travel suite Admin Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  /* Reset */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Poppins', sans-serif; background: #f5f7fa; color: #333; display: flex; }
+
+  /* Sidebar */
+  .sidebar {
+    width: 250px;
+    background: linear-gradient(180deg, #111 0%, #222 100%);
+    color: #fff;
+    height: 100vh;
+    position: fixed;
+    top: 0; left: 0;
+    padding: 20px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .sidebar h2 {
+    color: #ffce00;
+    font-size: 24px;
+    margin-bottom: 30px;
+    text-align: center;
+  }
+
+  .sidebar ul {
+    list-style: none;
+    width: 100%;
+  }
+
+  .sidebar ul li {
+    padding: 15px 20px;
+    margin-bottom: 10px;
+    background: #222;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+  }
+
+  .sidebar ul li:hover, .sidebar ul li.active {
+    background: #ffce00;
+    color: #111;
+  }
+
+  .sidebar ul li:hover i, .sidebar ul li.active i { color: #111; }
+
+  .sidebar ul li i {
+    margin-right: 10px;
+    color: #ffce00;
+  }
+
+  /* Main content */
+  .main {
+    margin-left: 250px;
+    padding: 30px;
+    width: calc(100% - 250px);
+    min-height: 100vh;
+    background: url('https://images.unsplash.com/photo-1571607382531-8b3e7716a60e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5NTU1OXwwfDF8c2VhcmNofDJ8fGNhcnxlbnwwfHx8fDE2OTk0NjgxNzN8&ixlib=rb-4.0.3&q=80&w=1080') no-repeat center center fixed;
+    background-size: cover;
+    overflow-y: auto;
+  }
+
+  h1 {
+    color: #111;
+    margin-bottom: 20px;
+    font-size: 28px;
+  }
+
+  /* Cards */
+  .card-container {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 30px;
+  }
+
+  .card {
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    padding: 20px;
+    border-radius: 12px;
+    flex: 1;
+    min-width: 200px;
+    text-align: center;
+    transition: transform 0.3s ease;
+  }
+
+  .card:hover {
+    transform: translateY(-5px);
+  }
+
+  .card h3 {
+    margin-bottom: 10px;
+    color: #ffce00;
+    font-size: 20px;
+  }
+
+  .card p {
+    font-size: 24px;
+    font-weight: 600;
+    color: #111;
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background: rgba(255,255,255,0.95);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+  }
+
+  th, td {
+    padding: 12px 15px;
+    text-align: center;
+  }
+
+  th {
+    background: #ffce00;
+    color: #111;
+    font-weight: 600;
+  }
+
+  td { color: #111; }
+
+  tr:nth-child(even) td { background: #f5f5f5; }
+
+  button {
+    background: #ffce00;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+  }
+
+  button:hover {
+    background: #111;
+    color: #fff;
+  }
+
+  /* Forms */
+  form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 20px;
+  }
+
+  form input, form select {
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    flex: 1 1 200px;
+  }
+
+  form label {
+    flex-basis: 100%;
+    font-weight: 500;
+  }
+
+  /* Section hiding */
+  section.hidden { display: none; }
+
+  /* Responsive */
+  @media(max-width: 900px) {
+    .main { margin-left: 0; width: 100%; padding: 15px; }
+    .sidebar { width: 100%; height: auto; flex-direction: row; justify-content: space-around; padding: 10px; position: relative; }
+    .sidebar h2 { font-size: 20px; margin-bottom: 0; }
+    .sidebar ul { display: flex; gap: 10px; }
+    .sidebar ul li { margin-bottom: 0; padding: 10px 12px; font-size: 14px; }
+    .card-container { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <h2>Travel suite</h2>
+  <ul>
+    <li class="active" onclick="showSection('dashboard')"><i>🏠</i>Dashboard</li>
+    <li onclick="showSection('operators')"><i>👥</i>Operators</li>
+    <li onclick="showSection('vehicles')"><i>🚗</i>Vehicles</li>
+    <li onclick="showSection('routes')"><i>🗺️</i>Routes</li>
+    <li onclick="showSection('bookings')"><i>🎟️</i>Bookings</li>
+    <li onclick="showSection('payments')"><i>💳</i>Payments</li>
+    <li onclick="showSection('settings')"><i>⚙️</i>Settings</li>
+  </ul>
+</div>
+
+<!-- Main Area -->
+<div class="main">
+
+  <!-- Dashboard Overview -->
+  <section id="dashboard">
+    <h1>System Overview</h1>
+    <div class="card-container">
+      <div class="card">
+        <h3>Total Vehicles</h3>
+        <p id="totalVehicles">3</p>
+      </div>
+      <div class="card">
+        <h3>Total Routes</h3>
+        <p id="totalRoutes">2</p>
+      </div>
+      <div class="card">
+        <h3>Total Bookings</h3>
+        <p id="totalBookings">1</p>
+      </div>
+      <div class="card">
+        <h3>Total Operators</h3>
+        <p id="totalOperators">2</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Operators -->
+  <section id="operators" class="hidden">
+    <h1>Manage Operators</h1>
+    <table>
+      <thead>
+        <tr><th>Name</th><th>Location</th><th>Contact</th><th>Access</th></tr>
+      </thead>
+      <tbody id="operatorTable">
+        <tr><td>Jane Mukamisha</td><td>kigali</td><td>+25078834506</td><td><button>Grant Access</button></td></tr>
+        <tr><td>Peter Nziza</td><td>MUSANZE</td><td>+2507880933</td><td><button>Revoke Access</button></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Vehicles -->
+  <section id="vehicles" class="hidden">
+    <h1>Manage Vehicles</h1>
+    <form id="addVehicleForm">
+      <label>License Plate</label>
+      <input type="text" id="plate" required placeholder="RAF 234A">
+      <label>Route</label>
+      <input type="text" id="route" required placeholder="KIGALI-MUSANZE">
+      <label>Capacity</label>
+      <input type="number" id="capacity" required placeholder="29">
+      <button type="submit">Add Vehicle</button>
+    </form>
+
+    <table>
+      <thead>
+        <tr><th>Plate</th><th>Route</th><th>Capacity</th><th>Status</th><th>Actions</th></tr>
+      </thead>
+      <tbody id="vehicleTable">
+        <tr><td>RAF 234A</td><td>KIGALI–MUSANZE</td><td>45</td><td>Available</td><td><button>Edit</button> <button>Delete</button></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Routes -->
+  <section id="routes" class="hidden">
+    <h1>Manage Routes</h1>
+    <form id="addRouteForm">
+      <label>Origin</label>
+      <input type="text" id="origin" required placeholder="KIGALI">
+      <label>Destination</label>
+      <input type="text" id="destination" required placeholder="MUSANZE">
+      <label>Fare</label>
+      <input type="number" id="fare" required placeholder="2000 RWF">
+      <label>Departure Time</label>
+      <input type="time" id="departure" required>
+      <button type="submit">Add Route</button>
+    </form>
+
+    <table>
+      <thead>
+        <tr><th>Origin</th><th>Destination</th><th>Fare</th><th>Departure</th></tr>
+      </thead>
+      <tbody id="routeTable">
+        <tr><td>KIGALI</td><td>MUSANZE</td><td>2000 Rwf</td><td>08:00</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Bookings -->
+  <section id="bookings" class="hidden">
+    <h1>All Bookings</h1>
+    <table>
+      <thead>
+        <tr><th>Customer</th><th>Route</th><th>Date</th><th>Status</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Placide shami</td><td>KIGALI–MUSANZE</td><td>2025-11-10</td><td>Confirmed</td><td><button>Cancel</button></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Payments -->
+  <section id="payments" class="hidden">
+    <h1>Payments</h1>
+    <table>
+      <thead><tr><th>Booking ID</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead>
+      <tbody><tr><td>#1021</td><td>2000 Rwf</td><td>Card</td><td>Completed</td></tr></tbody>
+    </table>
+  </section>
+
+  <!-- Settings -->
+  <section id="settings" class="hidden">
+    <h1>Settings</h1>
+    <p>Change admin password, email, or view profile info here.</p>
+  </section>
+
+</div>
+
+<script>
+function showSection(id) {
+  document.querySelectorAll('.main section').forEach(sec => sec.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+  document.querySelectorAll('.sidebar ul li').forEach(li => li.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+}
+
+// Add new vehicle (simulation)
+document.getElementById('addVehicleForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const plate = document.getElementById('plate').value;
+  const route = document.getElementById('route').value;
+  const cap = document.getElementById('capacity').value;
+  const row = `<tr><td>${plate}</td><td>${route}</td><td>${cap}</td><td>Available</td><td><button>Edit</button> <button>Delete</button></td></tr>`;
+  document.getElementById('vehicleTable').insertAdjacentHTML('beforeend', row);
+  e.target.reset();
+  alert('✅ Vehicle added successfully!');
+});
+
+// Add new route (simulation)
+document.getElementById('addRouteForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const o = document.getElementById('origin').value;
+  const d = document.getElementById('destination').value;
+  const f = document.getElementById('fare').value;
+  const dep = document.getElementById('departure').value;
+  const row = `<tr><td>${o}</td><td>${d}</td><td>$${f}</td><td>${dep}</td></tr>`;
+  document.getElementById('routeTable').insertAdjacentHTML('beforeend', row);
+  e.target.reset();
+  alert('🗺️ New route added!');
+});
+</script>
+</body>
+</html>

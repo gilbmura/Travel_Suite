@@ -1,0 +1,372 @@
+"""
+Core Backend Implementation for Transport Ticketing System
+Includes: Models, Serializers, WebSocket Consumers, and Utility Functions
+"""
+
+# --- Imports ---
+import pymysql
+pymysql.install_as_MySQLdb()
+from django.db import models
+from django.contrib.auth.models import AbstractUser
+from django.utils import timezone
+from rest_framework import serializers
+from rest_framework_simplejwt.tokens import RefreshToken
+from channels.generic.websocket import AsyncWebsocketConsumer
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+import json
+import uuid
+
+# ====================== MODELS ======================
+
+class User(AbstractUser):
+    """Custom User Model with roles for Admin/Operator/Customer."""
+    is_admin = models.BooleanField(default=False)
+    is_operator = models.BooleanField(default=False)
+    phone_number = models.CharField(max_length=20, unique=True)
+    national_id = models.CharField(max_length=25, unique=True, blank=True, null=True)
+
+    def __str__(self):
+        return self.username
+
+    class Meta:
+        db_table = 'auth_user'
+
+class AdminProfile(models.Model):
+    """Extended Profile for Admins."""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='admin_profile')
+    license_number = models.CharField(max_length=25, unique=True)
+
+    def __str__(self):
+        return f"Admin: {self.user.username}"
+
+    class Meta:
+        db_table = 'AdminProfile'
+
+class OperatorProfile(models.Model):
+    """Extended Profile for Operators."""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='operator_profile')
+    company_name = models.CharField(max_length=100)
+    license_number = models.CharField(max_length=25, unique=True)
+
+    def __str__(self):
+        return f"Operator: {self.company_name}"
+
+    class Meta:
+        db_table = 'OperatorProfile'
+
+class Customer(models.Model):
+    """Customer Model."""
+    name = models.CharField(max_length=100)
+    address = models.TextField(blank=True)
+    phone_number = models.CharField(max_length=20, unique=True)
+    national_id = models.CharField(max_length=25, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        db_table = 'Customer'
+
+class Route(models.Model):
+    """Route Model."""
+    origin = models.CharField(max_length=100)
+    destination = models.CharField(max_length=100)
+    departure_time = models.TimeField()
+    arrival_time = models.TimeField(blank=True, null=True)
+    stops = models.TextField(blank=True)
+    fare = models.DecimalField(max_digits=10, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.origin} → {self.destination}"
+
+    class Meta:
+        db_table = 'Routes'
+
+class Vehicle(models.Model):
+    """Vehicle Model."""
+    license_plate = models.CharField(max_length=20, unique=True)
+    route = models.ForeignKey(Route, on_delete=models.SET_NULL, null=True, db_column='RouteId')
+    capacity = models.IntegerField()
+    status = models.CharField(
+        max_length=12,
+        choices=[('Available', 'Available'), ('Unavailable', 'Unavailable')],
+        default='Available'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.license_plate
+
+    class Meta:
+        db_table = 'Vehicle'
+
+class Seat(models.Model):
+    """Seat Model for Vehicle Seat Management."""
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, related_name='seats')
+    seat_number = models.CharField(max_length=10, unique=True)
+    is_booked = models.BooleanField(default=False)
+    booking = models.ForeignKey('Booking', on_delete=models.SET_NULL, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.vehicle.license_plate} - {self.seat_number}"
+
+    class Meta:
+        db_table = 'Seat'
+
+class Event(models.Model):
+    """Event Model."""
+    name = models.CharField(max_length=100)
+    date = models.DateField()
+    location = models.CharField(max_length=100)
+    available_seats = models.IntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        db_table = 'Events'
+
+class Booking(models.Model):
+    """Booking Model."""
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, db_column='CustomerId')
+    event = models.ForeignKey(Event, on_delete=models.SET_NULL, null=True, blank=True, db_column='EventId')
+    route = models.ForeignKey(Route, on_delete=models.SET_NULL, null=True, blank=True, db_column='RouteId')
+    seat_number = models.CharField(max_length=20, blank=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    status = models.CharField(
+        max_length=10,
+        choices=[('Pending', 'Pending'), ('Confirmed', 'Confirmed'), ('Cancelled', 'Cancelled')],
+        default='Pending'
+    )
+    date = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Booking {self.id} - {self.customer.name}"
+
+    class Meta:
+        db_table = 'Booking'
+
+class Ticket(models.Model):
+    """Ticket Model for Validation."""
+    booking = models.OneToOneField(Booking, on_delete=models.CASCADE, related_name='ticket')
+    qr_code = models.TextField(unique=True)
+    is_used = models.BooleanField(default=False)
+    validated_at = models.DateTimeField(null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.qr_code:
+            self.qr_code = str(uuid.uuid4())
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Ticket for {self.booking}"
+
+    class Meta:
+        db_table = 'Ticket'
+
+class Payment(models.Model):
+    """Payment Model."""
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, db_column='BookingId')
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_method = models.CharField(
+        max_length=12,
+        choices=[('Cash', 'Cash'), ('Card', 'Card'), ('MobileMoney', 'MobileMoney')]
+    )
+    status = models.CharField(
+        max_length=10,
+        choices=[('Pending', 'Pending'), ('Completed', 'Completed'), ('Failed', 'Failed')],
+        default='Pending'
+    )
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Payment for {self.booking}"
+
+    class Meta:
+        db_table = 'Payments'
+
+class Transaction(models.Model):
+    """Transaction Model."""
+    payment = models.ForeignKey(Payment, on_delete=models.CASCADE, db_column='Payment_Id')
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, db_column='Booking_Id')
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_status = models.CharField(
+        max_length=10,
+        choices=[('Success', 'Success'), ('Failed', 'Failed'), ('Refunded', 'Refunded')],
+        default='Success'
+    )
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Transaction for {self.booking}"
+
+    class Meta:
+        db_table = 'Transaction'
+
+# ====================== SERIALIZERS ======================
+
+class UserRegistrationSerializer(serializers.ModelSerializer):
+    """Serializer for User Registration."""
+    password = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = User
+        fields = ['username', 'password', 'phone_number', 'national_id', 'is_admin', 'is_operator']
+
+    def create(self, validated_data):
+        user = User.objects.create_user(
+            username=validated_data['username'],
+            password=validated_data['password'],
+            phone_number=validated_data['phone_number'],
+            national_id=validated_data.get('national_id', ''),
+            is_admin=validated_data.get('is_admin', False),
+            is_operator=validated_data.get('is_operator', False)
+        )
+        return user
+
+class UserLoginSerializer(serializers.Serializer):
+    """Serializer for User Login."""
+    username = serializers.CharField()
+    password = serializers.CharField(write_only=True)
+    token = serializers.SerializerMethodField()
+
+    def get_token(self, obj):
+        user = authenticate(username=obj['username'], password=obj['password'])
+        if user:
+            refresh = RefreshToken.for_user(user)
+            return {
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+            }
+        return None
+
+    def validate(self, data):
+        from django.contrib.auth import authenticate
+        user = authenticate(username=data['username'], password=data['password'])
+        if not user:
+            raise serializers.ValidationError("Invalid credentials")
+        if not user.is_active:
+            raise serializers.ValidationError("User is inactive")
+        return data
+
+class CustomerSerializer(serializers.ModelSerializer):
+    """Serializer for Customer Model."""
+    class Meta:
+        model = Customer
+        fields = '__all__'
+
+class RouteSerializer(serializers.ModelSerializer):
+    """Serializer for Route Model."""
+    class Meta:
+        model = Route
+        fields = '__all__'
+
+class SeatSerializer(serializers.ModelSerializer):
+    """Serializer for Seat Model."""
+    class Meta:
+        model = Seat
+        fields = '__all__'
+
+class BookingSerializer(serializers.ModelSerializer):
+    """Serializer for Booking Model."""
+    class Meta:
+        model = Booking
+        fields = '__all__'
+
+class TicketSerializer(serializers.ModelSerializer):
+    """Serializer for Ticket Model."""
+    class Meta:
+        model = Ticket
+        fields = '__all__'
+
+class PaymentSerializer(serializers.ModelSerializer):
+    """Serializer for Payment Model."""
+    class Meta:
+        model = Payment
+        fields = '__all__'
+
+# ====================== WEB SOCKET CONSUMERS ======================
+
+class BusLocationConsumer(AsyncWebsocketConsumer):
+    """WebSocket Consumer for Real-Time Bus Location Updates."""
+    async def connect(self):
+        self.room_group_name = 'bus_locations'
+        await self.channel_layer.group_add(
+            self.room_group_name,
+            self.channel_name
+        )
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_discard(
+            self.room_group_name,
+            self.channel_name
+        )
+
+    async def receive(self, text_data):
+        data = json.loads(text_data)
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'send_location',
+                'location': data['location'],
+                'bus_id': data['bus_id'],
+            }
+        )
+
+    async def send_location(self, event):
+        await self.send(text_data=json.dumps({
+            'bus_id': event['bus_id'],
+            'location': event['location'],
+        }))
+
+# ====================== UTILITY FUNCTIONS ======================
+
+def generate_qr_code():
+    """Generate a unique QR code string."""
+    return str(uuid.uuid4())
+
+def check_seat_availability(vehicle, date):
+    """Check if seats are available for a vehicle on a specific date."""
+    booked_seats = Seat.objects.filter(vehicle=vehicle, is_booked=True).count()
+    return booked_seats < vehicle.capacity
+
+def send_ussd_response(phone_number, message):
+    """Simulate sending USSD response (replace with Africa's Talking API)."""
+    print(f"USSD Response to {phone_number}: {message}")
+    # Actual implementation would call Africa's Talking API here
+
+def notify_bus_location(bus_id, location):
+    """Notify all connected clients about bus location."""
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        'bus_locations',
+        {
+            'type': 'send_location',
+            'bus_id': bus_id,
+            'location': location,
+        }
+    )
+
+def validate_ticket(qr_code):
+    """Validate a ticket using its QR code."""
+    try:
+        ticket = Ticket.objects.get(qr_code=qr_code)
+        if ticket.is_used:
+            return {'status': 'error', 'message': 'Ticket already used'}
+        ticket.is_used = True
+        ticket.validated_at = timezone.now()
+        ticket.save()
+        return {'status': 'success', 'message': 'Ticket validated'}
+    except Ticket.DoesNotExist:
+        return {'status': 'error', 'message': 'Invalid ticket'}

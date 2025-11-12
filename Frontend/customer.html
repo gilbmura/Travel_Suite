@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Travel suite — Ticket Booking</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: url('13.jpg') no-repeat center center/cover;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: rgba(0,0,0,0.75);
+      padding: 1rem 2rem;
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #ffce00;
+      letter-spacing: 1px;
+    }
+
+    main {
+      background: rgba(0,0,0,0.65);
+      margin: 2rem auto;
+      padding: 2rem;
+      width: 90%;
+      max-width: 900px;
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+
+    h1, h2 {
+      text-align: center;
+      color: #ffce00;
+    }
+
+    label {
+      display: block;
+      margin-top: 1rem;
+      font-weight: 600;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 0.8rem;
+      margin-top: 0.5rem;
+      border: none;
+      border-radius: 5px;
+      outline: none;
+      background: rgba(255,255,255,0.9);
+      color: #000;
+    }
+
+    .btn {
+      display: inline-block;
+      margin-top: 1.2rem;
+      padding: 0.8rem 1.5rem;
+      background: #ffce00;
+      color: #000;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .btn:hover {
+      background: #ffdd33;
+      transform: scale(1.05);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1.5rem;
+      background: rgba(255,255,255,0.9);
+      color: #000;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    th, td {
+      padding: 0.8rem;
+      text-align: center;
+      border-bottom: 1px solid #ddd;
+    }
+
+    th {
+      background: #ffce00;
+    }
+
+    /* Ticket modal */
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background: #fff;
+      color: #000;
+      padding: 2rem;
+      border-radius: 10px;
+      width: 350px;
+      text-align: center;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .modal-content h3 {
+      color: #333;
+      margin-bottom: 1rem;
+    }
+
+    @keyframes fadeIn {
+      from {opacity: 0; transform: scale(0.8);}
+      to {opacity: 1; transform: scale(1);}
+    }
+
+    footer {
+      text-align: center;
+      margin-top: auto;
+      padding: 1rem;
+      background: rgba(0,0,0,0.75);
+      color: #ccc;
+    }
+  </style>
+</head>
+<body>
+
+<header>🚌 Travel suite — Online Ticket Booking</header>
+
+<main>
+  <section id="book">
+    <h1>Find and Book Your Ride</h1>
+
+    <!-- Step 1: Choose Route -->
+    <form id="routeForm">
+      <label>Origin</label>
+      <select id="origin" required>
+        <option value="">Select Origin</option>
+        <option>KIGALI</option>
+        <option>MUSANZE</option>
+        <option>KAYONZA</option>
+        <option>NYAGATARE</option>
+      </select>
+
+      <label>Destination</label>
+      <select id="destination" required>
+        <option value="">Select Destination</option>
+        <option>KIGALI</option>
+        <option>KAYONZA</option>
+        <option>MUSANZE</option>
+        <option>RUBAVU</option>
+      </select>
+
+      <label>Travel Date</label>
+      <input type="date" id="travelDate" required>
+
+      <button type="button" class="btn" id="searchBtn">Search Available Cars</button>
+    </form>
+
+    <!-- Step 2: Show Available Vehicles -->
+    <div id="vehicleResults" style="display:none;">
+      <h2>Available Cars</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>License Plate</th>
+            <th>Departure</th>
+            <th>Fare</th>
+            <th>Seats</th>
+            <th>Select</th>
+          </tr>
+        </thead>
+        <tbody id="vehicleTableBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Step 3: Passenger Info -->
+    <form id="travelerForm" style="display:none;">
+      <h2>Passenger Information</h2>
+
+      <label>Full Name</label>
+      <input type="text" id="travelerName" placeholder="Placide shami" required>
+
+      <label>Phone Number</label>
+      <input type="tel" id="travelerPhone" placeholder="+250788345678" required>
+
+      <label>Selected Vehicle</label>
+      <input type="text" id="selectedVehicle" readonly>
+
+      <label>Total Fare</label>
+      <input type="text" id="fareDisplay" readonly>
+
+      <button type="submit" class="btn">Confirm Booking</button>
+    </form>
+  </section>
+</main>
+
+<!-- Ticket Modal -->
+<div id="ticketModal" class="modal">
+  <div class="modal-content">
+    <h3>🎟️ Your Ticket</h3>
+    <p id="ticketDetails"></p>
+    <canvas id="qrCanvas"></canvas>
+    <button class="btn" onclick="closeModal()">Close</button>
+  </div>
+</div>
+
+<footer>© 2025 SmartBus | Travel Made Easy</footer>
+
+<!-- QR Generator -->
+<script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
+
+<script>
+// === Sample Route Data ===
+const routeData = [
+  { origin: 'KIGALI', destination: 'MUSANZE', vehicles: [
+    { license_plate: 'RAF 234A', departure_time: '08:00', fare: 2000, available_seats: 10 },
+    { license_plate: 'RAC 998C', departure_time: '14:00', fare: 2000, available_seats: 3 }
+  ]},
+  { origin: 'KIGALI', destination: 'KAYONZA', vehicles: [
+    { license_plate: 'RAA 771B', departure_time: '09:30', fare: 2500, available_seats: 7 },
+    { license_plate: 'RAC 123D', departure_time: '16:00', fare: 2500, available_seats: 2 }
+  ]}
+];
+
+const searchBtn = document.getElementById('searchBtn');
+const vehicleResults = document.getElementById('vehicleResults');
+const vehicleTableBody = document.getElementById('vehicleTableBody');
+const travelerForm = document.getElementById('travelerForm');
+const selectedVehicleInput = document.getElementById('selectedVehicle');
+const fareDisplay = document.getElementById('fareDisplay');
+const ticketModal = document.getElementById('ticketModal');
+const ticketDetails = document.getElementById('ticketDetails');
+
+// Step 1: Search
+searchBtn.addEventListener('click', () => {
+  const origin = document.getElementById('origin').value;
+  const destination = document.getElementById('destination').value;
+  const date = document.getElementById('travelDate').value;
+
+  if (!origin || !destination || !date) {
+    alert('Please select origin, destination and date.');
+    return;
+  }
+
+  const foundRoute = routeData.find(r => r.origin === origin && r.destination === destination);
+  vehicleTableBody.innerHTML = '';
+
+  if (foundRoute) {
+    foundRoute.vehicles.forEach(v => {
+      const row = `
+        <tr>
+          <td>${v.license_plate}</td>
+          <td>${v.departure_time}</td>
+          <td>${v.fare}</td>
+          <td>${v.available_seats}</td>
+          <td><button class="btn selectBtn" 
+              data-plate="${v.license_plate}" 
+              data-fare="${v.fare}" 
+              data-origin="${origin}"
+              data-destination="${destination}">Select</button></td>
+        </tr>`;
+      vehicleTableBody.insertAdjacentHTML('beforeend', row);
+    });
+    vehicleResults.style.display = 'block';
+  } else {
+    vehicleTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">No vehicles for this route.</td></tr>`;
+    vehicleResults.style.display = 'block';
+  }
+});
+
+// Step 2: Select Vehicle
+let selectedOrigin, selectedDestination, selectedFare;
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('selectBtn')) {
+    const plate = e.target.dataset.plate;
+    selectedFare = e.target.dataset.fare;
+    selectedOrigin = e.target.dataset.origin;
+    selectedDestination = e.target.dataset.destination;
+
+    selectedVehicleInput.value = plate;
+    fareDisplay.value = `Rwf${selectedFare}`;
+    travelerForm.style.display = 'block';
+    window.scrollTo({ top: travelerForm.offsetTop, behavior: 'smooth' });
+  }
+});
+
+// Step 3: Confirm Booking
+travelerForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+
+  const name = document.getElementById('travelerName').value;
+  const phone = document.getElementById('travelerPhone').value;
+  const id = document.getElementById('travelerID').value;
+  const vehicle = selectedVehicleInput.value;
+
+  // Create Ticket Info
+  const ticketText = `
+  Name: ${name}
+  Phone: ${phone}
+  From: ${selectedOrigin}
+  To: ${selectedDestination}
+  Vehicle: ${vehicle}
+  Fare: $${selectedFare}
+  `;
+
+  ticketDetails.innerHTML = ticketText.replace(/\n/g, '<br>');
+
+  const qr = new QRious({
+    element: document.getElementById('qrCanvas'),
+    value: ticketText,
+    size: 180
+  });
+
+  ticketModal.style.display = 'flex';
+});
+
+function closeModal() {
+  ticketModal.style.display = 'none';
+}
+</script>
+</body>
+</html>
