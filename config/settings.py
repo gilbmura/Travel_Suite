@@ -17,7 +17,7 @@ ALLOWED_HOSTS = ['*']
 
 # Application definition
 INSTALLED_APPS = [
-    'daphne',
+    # 'daphne',  # Temporarily disabled to use Django WSGI server
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -110,6 +110,11 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# Serve Frontend folder as static files during development
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'Frontend'),
+]
 
 # Media files
 MEDIA_URL = '/media/'

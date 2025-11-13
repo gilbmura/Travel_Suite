@@ -90,7 +90,7 @@ document.getElementById('signupForm').addEventListener('submit', async (e) => {
   }
   
   try {
-    const response = await fetch(`${API_BASE}/operator-register/`, {
+    const response = await fetch(`${API_BASE}/auth/register/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, email, phone_number: phone, password })
