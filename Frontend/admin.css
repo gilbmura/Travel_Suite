@@ -177,3 +177,27 @@
     .sidebar ul li { margin-bottom: 0; padding: 10px 12px; font-size: 14px; }
     .card-container { flex-direction: column; }
   }
+
+  /* Grant / Revoke button styles */
+  .grant-btn {
+    background: #16a34a; /* green */
+    color: #fff;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .revoke-btn {
+    background: #dc2626; /* red */
+    color: #fff;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .grant-btn[disabled], .revoke-btn[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }

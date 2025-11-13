@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Travel suite Admin Dashboard</title>
 <link href="admin.css" rel="stylesheet">
+<script src="scripts.js"></script>
 <style>
  
 </style>
@@ -22,6 +23,7 @@
     <li onclick="showSection('bookings', this)"><i>🎟️</i>Bookings</li>
     <li onclick="showSection('payments', this)"><i>💳</i>Payments</li>
     <li onclick="showSection('settings', this)"><i>⚙️</i>Settings</li>
+    <li onclick="logoutUser()"><i>🚪</i>Logout</li>
   </ul>
 </div>
 
@@ -56,11 +58,10 @@
     <h1>Manage Operators</h1>
     <table>
       <thead>
-        <tr><th>Name</th><th>Location</th><th>Contact</th><th>Access</th></tr>
+        <tr><th>Name</th><th>Contact</th><th>Email</th><th>Access</th></tr>
       </thead>
       <tbody id="operatorTable">
-        <tr><td>Jane Mukamisha</td><td>kigali</td><td>+25078834506</td><td><button>Grant Access</button></td></tr>
-        <tr><td>Peter Nziza</td><td>MUSANZE</td><td>+2507880933</td><td><button>Revoke Access</button></td></tr>
+        <!-- dynamic operator rows will be inserted here -->
       </tbody>
     </table>
   </section>
@@ -211,7 +212,74 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => alert.remove(), 2500);
     });
   }
+
+  // --- Operators list (dynamic) ---
+  async function loadOperators() {
+    try {
+      const ops = await window.getOperators();
+      renderOperatorRows(ops);
+    } catch (err) {
+      console.error('Failed to load operators', err);
+      if (typeof showToast === 'function') showToast('Unable to load operators', 'error');
+    }
+  }
+
+  function renderOperatorRows(ops) {
+    const tbody = document.getElementById('operatorTable');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    ops.forEach(op => {
+      const tr = document.createElement('tr');
+      const name = ((op.first_name || '') + ' ' + (op.last_name || '')).trim() || op.username || 'N/A';
+      const contact = op.phone_number || '-';
+      const email = op.email || '-';
+      const accessBtn = document.createElement('button');
+      accessBtn.className = op.is_active ? 'revoke-btn' : 'grant-btn';
+      accessBtn.textContent = op.is_active ? 'Revoke Access' : 'Grant Access';
+      accessBtn.disabled = false;
+      accessBtn.addEventListener('click', async () => {
+        accessBtn.disabled = true;
+        const targetState = !op.is_active;
+        try {
+          await window.toggleOperatorAccess(op.id, targetState);
+          op.is_active = targetState;
+          accessBtn.textContent = op.is_active ? 'Revoke Access' : 'Grant Access';
+          accessBtn.className = op.is_active ? 'revoke-btn' : 'grant-btn';
+          if (typeof showToast === 'function') showToast('Operator access updated', 'success');
+        } catch (e) {
+          console.error('toggle access failed', e);
+          if (typeof showToast === 'function') showToast('Failed to update access', 'error');
+        } finally {
+          accessBtn.disabled = false;
+        }
+      });
+
+      tr.innerHTML = `<td>${escapeHtml(name)}</td><td>${escapeHtml(contact)}</td><td>${escapeHtml(email)}</td>`;
+      const td = document.createElement('td');
+      td.appendChild(accessBtn);
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+    });
+  }
+
+  function escapeHtml(s){ return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // load operators when admin page loads
+  loadOperators();
 });
+
+// Logout helper used by the sidebar
+function logoutUser() {
+  try {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('username');
+  } catch (e) {
+    // ignore storage errors
+  }
+  // redirect back to the login hub
+  window.location.href = '/Frontend/login-hub.html';
+}
 </script>
 </body>
 </html>

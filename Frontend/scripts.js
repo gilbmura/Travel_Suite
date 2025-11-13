@@ -161,3 +161,55 @@ function showToast(message, type = 'info') {
         toast.remove();
     }, 5000);
 }
+
+// ============================================
+// API HELPERS (used by admin pages)
+// ============================================
+const API_ROOT = 'http://127.0.0.1:8000/api';
+
+async function apiFetch(endpoint, method = 'GET', body = null) {
+    const token = localStorage.getItem('authToken');
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(`${API_ROOT}${endpoint}`, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+    });
+
+    if (res.status === 401) {
+        // expired / unauthorized - force logout
+        try { localStorage.removeItem('authToken'); } catch (e) {}
+        window.location.href = '/Frontend/login-hub.html';
+        throw new Error('Unauthorized');
+    }
+
+    if (res.status === 204) return null;
+
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+        const err = (data && data.detail) || (data && JSON.stringify(data)) || res.statusText;
+        throw new Error(err);
+    }
+    return data;
+}
+
+// Fetch all users and return only operators (clients should filter further if needed)
+async function getOperators() {
+    const users = await apiFetch('/users/');
+    if (!Array.isArray(users)) return [];
+    return users.filter(u => u.is_operator === true);
+}
+
+// Toggle operator access by setting is_active flag. Returns updated user object.
+async function toggleOperatorAccess(userId, allow) {
+    const payload = { is_active: !!allow };
+    const updated = await apiFetch(`/users/${userId}/`, 'PATCH', payload);
+    return updated;
+}
+
+// expose helpers to global scope for inline pages that don't import modules
+window.apiFetch = apiFetch;
+window.getOperators = getOperators;
+window.toggleOperatorAccess = toggleOperatorAccess;

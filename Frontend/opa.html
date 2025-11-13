@@ -116,12 +116,13 @@
 <div class="sidebar">
   <h2>Travel suite Operator</h2>
   <ul>
-    <li class="active" onclick="showSection('dashboard')">🏠 Dashboard</li>
-    <li onclick="showSection('myVehicles')">🚗 My Vehicles</li>
-    <li onclick="showSection('myRoutes')">🗺️ My Routes</li>
-    <li onclick="showSection('bookings')">🎟️ Bookings</li>
-    <li onclick="showSection('payments')">💳 Payments</li>
-    <li onclick="showSection('settings')">⚙️ Settings</li>
+    <li class="active" onclick="showSection('dashboard', this)">🏠 Dashboard</li>
+    <li onclick="showSection('myVehicles', this)">🚗 My Vehicles</li>
+    <li onclick="showSection('myRoutes', this)">🗺️ My Routes</li>
+    <li onclick="showSection('bookings', this)">🎟️ Bookings</li>
+    <li onclick="showSection('payments', this)">💳 Payments</li>
+    <li onclick="showSection('settings', this)">⚙️ Settings</li>
+    <li onclick="logoutUser()">🚪 Logout</li>
   </ul>
 </div>
 
@@ -204,11 +205,23 @@
 </div>
 
 <script>
-function showSection(id) {
+function showSection(id, liEl) {
   document.querySelectorAll('.main section').forEach(sec => sec.classList.add('hidden'));
-  document.getElementById(id).classList.remove('hidden');
+  const target = document.getElementById(id);
+  if (target) target.classList.remove('hidden');
   document.querySelectorAll('.sidebar ul li').forEach(li => li.classList.remove('active'));
-  event.currentTarget.classList.add('active');
+  if (liEl) liEl.classList.add('active');
+}
+
+function logoutUser() {
+  try {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('username');
+  } catch (e) {
+    // ignore storage errors
+  }
+  window.location.href = '/Frontend/login-hub.html';
 }
 </script>
 
