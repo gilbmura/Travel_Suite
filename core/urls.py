@@ -6,7 +6,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     UserRegistrationViewSet, UserViewSet, CustomerViewSet, RouteViewSet,
-    VehicleViewSet, SeatViewSet, EventViewSet, BookingViewSet, 
+    VehicleViewSet, SeatViewSet, EventViewSet, BookingViewSet,
     TicketViewSet, PaymentViewSet, TransactionViewSet
 )
 

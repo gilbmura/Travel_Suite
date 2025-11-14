@@ -51,8 +51,14 @@ class UserRegistrationViewSet(viewsets.ViewSet):
                 'user': UserSerializer(user).data,
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
+                'success': True,
+                'message': 'Login successful'
             }, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({
+            'success': False,
+            'error': serializer.errors,
+            'detail': 'Invalid credentials'
+        }, status=status.HTTP_401_UNAUTHORIZED)
 
 
 class UserViewSet(viewsets.ModelViewSet):

@@ -159,7 +159,7 @@ class Booking(models.Model):
 class Ticket(models.Model):
     """Ticket Model for Validation."""
     booking = models.OneToOneField(Booking, on_delete=models.CASCADE, related_name='ticket')
-    qr_code = models.TextField(unique=True)
+    qr_code = models.TextField(max_length=500, unique=True)
     is_used = models.BooleanField(default=False)
     validated_at = models.DateTimeField(null=True, blank=True)
 

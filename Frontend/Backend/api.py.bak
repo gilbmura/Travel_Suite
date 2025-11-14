@@ -1,0 +1,187 @@
+#!/usr/bin/python3
+"""
+FastAPI Transport System - Customer Management API
+"""
+
+from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from pydantic import BaseModel, Field
+from typing import List
+from datetime import datetime, timedelta
+from jose import JWTError, jwt
+import mysql.connector
+# import hashlib
+
+# --- App setup ---
+app = FastAPI(title="Transport Customer API")
+
+# --- JWT setup ---
+SECRET_KEY = "91a61940009974f71ab16149fb07e5a1e835c6b01d249ebc374b918c21911a4e"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+# --- Database connection ---
+
+
+def get_db():
+    conn = mysql.connector.connect(
+        host="localhost",
+        user="app_user",
+        password="UserApp@123",
+        database="transport_db"
+    )
+    return conn
+
+# --- Models ---
+
+
+class CustomerCreate(BaseModel):
+    name: str
+    address: str
+    phone_number: str
+    national_id: str
+
+
+class CustomerOut(BaseModel):
+    id: int
+    name: str
+    address: str
+    phone_number: str
+    national_id: str
+    created_at: datetime
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+# --- Authentication helpers ---
+
+
+def create_access_token(data: dict, expires_delta: timedelta = None):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def verify_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("user_id")
+        role = payload.get("role")
+        if user_id is None or role is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        return {"user_id": user_id, "role": role}
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    return verify_token(token)
+
+# --- Customer endpoints ---
+
+
+@app.post("/api/customers/register", response_model=CustomerOut)
+def register_customer(customer: CustomerCreate):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+
+    # Check for existing phone or national ID
+    cursor.execute(
+        "SELECT * FROM Customer WHERE phone_number=%s OR national_id=%s",
+        (customer.phone_number, customer.national_id)
+    )
+    if cursor.fetchone():
+        cursor.close()
+        conn.close()
+        raise HTTPException(status_code=400, detail="Customer already exists")
+
+    # Insert customer
+    cursor.execute(
+        "INSERT INTO Customer (name, address, phone_number, "
+        "national_id) VALUES (%s, %s, %s, %s)",
+        (customer.name, customer.address, customer.phone_number,
+         customer.national_id)
+    )
+    conn.commit()
+    customer_id = cursor.lastrowid
+
+    # Retrieve created customer
+    cursor.execute("SELECT * FROM Customer WHERE id=%s", (customer_id,))
+    new_customer = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return CustomerOut(**new_customer)
+
+
+@app.get("/api/customers/me", response_model=CustomerOut)
+def get_my_profile(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "customer":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute(
+        "SELECT * FROM Customer WHERE id=%s",
+        (current_user["user_id"],)
+    )
+    customer = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return CustomerOut(**customer)
+
+# --- Admin / Operator endpoints ---
+
+
+@app.get("/api/admin/customers", response_model=List[CustomerOut])
+def list_customers(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ("admin", "operator"):
+        raise HTTPException(status_code=403, detail="Not authorized")
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM Customer")
+    customers = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return [CustomerOut(**c) for c in customers]
+
+
+@app.get("/api/admin/customers/{customer_id}", response_model=CustomerOut)
+def get_customer(
+    customer_id: int,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] not in ("admin", "operator"):
+        raise HTTPException(status_code=403, detail="Not authorized")
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM Customer WHERE id=%s", (customer_id,))
+    customer = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return CustomerOut(**customer)
+
+# --- Token endpoint for login (simplified) ---
+
+
+@app.post("/token", response_model=Token)
+def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    # Lookup user by username (assume username = phone_number)
+    cursor.execute("SELECT id, phone_number, 'customer' AS role FROM Customer WHERE phone_number=%s", 
+                   (form_data.username,))
+    user = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    if not user or form_data.password != "pass":  # Replace with hashed password check
+        raise HTTPException(status_code=401, detail="Incorrect credentials")
+    access_token = create_access_token(data={"user_id": user["id"], "role": user["role"]})
+    return {"access_token": access_token, "token_type": "bearer"}
