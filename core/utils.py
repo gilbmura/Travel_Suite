@@ -2,13 +2,23 @@
 Utility functions for Travel Suite
 """
 
+import json
 import uuid
+from decimal import Decimal
+
+from asgiref.sync import async_to_sync
+from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
-import json
 
-from .models import Ticket, Seat
+from .models import (
+    Ticket,
+    Seat,
+    Booking,
+    BookingSequence,
+    OperatorAssignment,
+)
 
 
 def generate_qr_code():
@@ -16,13 +26,25 @@ def generate_qr_code():
     return str(uuid.uuid4())
 
 
-def check_seat_availability(vehicle, date):
+def check_seat_availability(vehicle, travel_date):
     """
-    Check if seats are available for a vehicle on a specific date.
-    Returns count of available seats.
+    Calculate available seats for a vehicle on a given travel date.
+    If travel_date is None, falls back to simple seat count.
     """
-    booked_seats = Seat.objects.filter(vehicle=vehicle, is_booked=True).count()
-    available = vehicle.capacity - booked_seats
+    if vehicle is None:
+        return 0
+
+    if not travel_date:
+        booked_seats = Seat.objects.filter(vehicle=vehicle, is_booked=True).count()
+        return max(0, vehicle.capacity - booked_seats)
+
+    confirmed = Booking.objects.filter(
+        vehicle=vehicle,
+        travel_date=travel_date,
+        status='CONFIRMED'
+    ).aggregate(total=Sum('seats_booked'))['total'] or 0
+
+    available = vehicle.capacity - confirmed
     return max(0, available)
 
 
@@ -77,3 +99,21 @@ def validate_ticket(qr_code):
             'status': 'error',
             'message': 'Invalid QR code or ticket not found'
         }
+
+
+def get_next_booking_id():
+    """Generate the next booking identifier in a transaction-safe way."""
+    with transaction.atomic():
+        sequence, _ = BookingSequence.objects.select_for_update().get_or_create(name='default')
+        sequence.last_number += 1
+        sequence.save(update_fields=['last_number', 'updated_at'])
+        return f"#{sequence.last_number}"
+
+
+def operator_route_ids(user):
+    """Return a list of route IDs assigned to the operator user."""
+    if not user or not getattr(user, 'is_operator', False):
+        return []
+    return list(
+        OperatorAssignment.objects.filter(operator__user=user).values_list('route_id', flat=True)
+    )

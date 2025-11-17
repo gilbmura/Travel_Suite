@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Travel suite Operator Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+<script src="scripts.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Poppins', sans-serif; background-color: #f4f6f9; display: flex; color: #333; }
@@ -135,15 +136,15 @@
     <div class="card-container">
       <div class="card">
         <h3>Assigned Vehicles</h3>
-        <p id="totalVehicles">3</p>
+        <p id="operatorVehiclesCount">0</p>
       </div>
       <div class="card">
         <h3>Assigned Routes</h3>
-        <p id="totalRoutes">5</p>
+        <p id="operatorRoutesCount">0</p>
       </div>
       <div class="card">
-        <h3>Pending Bookings</h3>
-        <p id="totalBookings">12</p>
+        <h3>Bookings</h3>
+        <p id="operatorBookingCount">0</p>
       </div>
     </div>
   </section>
@@ -155,8 +156,8 @@
       <thead>
         <tr><th>Plate</th><th>Route</th><th>Capacity</th><th>Status</th><th>Actions</th></tr>
       </thead>
-      <tbody>
-        <tr><td>RAF 234A</td><td>KIGALI–MUSANZE</td><td>45</td><td>Available</td><td><button>Update Status</button></td></tr>
+      <tbody id="operatorVehiclesTableBody">
+        <tr><td colspan="5" style="text-align:center; padding:16px; color:#666;">Loading vehicles...</td></tr>
       </tbody>
     </table>
   </section>
@@ -168,8 +169,8 @@
       <thead>
         <tr><th>Origin</th><th>Destination</th><th>Fare</th><th>Departure Time</th></tr>
       </thead>
-      <tbody>
-        <tr><td>KIGALI</td><td>MUSANZE</td><td>rwf 2000</td><td>08:00</td></tr>
+      <tbody id="operatorRoutesTableBody">
+        <tr><td colspan="4" style="text-align:center; padding:16px; color:#666;">Loading routes...</td></tr>
       </tbody>
     </table>
   </section>
@@ -181,10 +182,11 @@
       <thead>
         <tr><th>Customer</th><th>Route</th><th>Date</th><th>Status</th><th>Actions</th></tr>
       </thead>
-      <tbody>
-        <tr><td>Placide shami</td><td>KIGALI–MUSANZE</td><td>2025-11-10</td><td>Confirmed</td><td><button>Cancel</button></td></tr>
+      <tbody id="operatorBookingsTableBody">
+        <tr><td colspan="5" style="text-align:center; padding:16px; color:#666;">Loading bookings...</td></tr>
       </tbody>
     </table>
+    <div id="operatorBookingList" style="margin-top:18px;"></div>
   </section>
 
   <!-- Payments -->
@@ -223,6 +225,181 @@ function logoutUser() {
   }
   window.location.href = '/Frontend/login-hub.html';
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  const activeLi = document.querySelector('.sidebar ul li.active') || document.querySelector('.sidebar ul li');
+  if (activeLi) {
+    const match = activeLi.getAttribute('onclick')?.match(/'([^']+)'/);
+    if (match?.[1]) showSection(match[1], activeLi);
+  }
+  initOperatorData();
+});
+
+async function initOperatorData() {
+  if (typeof window.getOperatorVehicles !== 'function') return;
+  try {
+    const [vehicles, routes, bookings] = await Promise.all([
+      window.getOperatorVehicles(),
+      window.getOperatorRoutes(),
+      window.getOperatorBookings()
+    ]);
+
+    const vehicleCountEl = document.getElementById('operatorVehiclesCount');
+    if (vehicleCountEl) {
+      vehicleCountEl.textContent = vehicles.length;
+      document.getElementById('operatorRoutesCount').textContent = routes.length;
+      document.getElementById('operatorBookingCount').textContent = bookings.length;
+    }
+
+    renderOperatorVehicles(vehicles);
+    renderOperatorRoutes(routes);
+    renderOperatorBookings(bookings);
+  } catch (err) {
+    console.error('Failed to load operator data', err);
+    alert('Unable to load operator data. Please refresh and ensure you are logged in.');
+  }
+}
+
+function renderOperatorVehicles(vehicles) {
+  const tbody = document.getElementById('operatorVehiclesTableBody');
+  if (!tbody) return;
+  if (!Array.isArray(vehicles) || vehicles.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:16px; color:#666;">No vehicles assigned</td></tr>';
+    return;
+  }
+  tbody.innerHTML = '';
+  vehicles.forEach(vehicle => {
+    const route = vehicle.route_details ? `${vehicle.route_details.origin} → ${vehicle.route_details.destination}` : '—';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(vehicle.license_plate)}</td>
+      <td>${escapeHtml(route)}</td>
+      <td>${escapeHtml(vehicle.capacity)}</td>
+      <td>${escapeHtml(vehicle.status)}</td>
+      <td><button disabled>Manage</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderOperatorRoutes(routes) {
+  const tbody = document.getElementById('operatorRoutesTableBody');
+  if (!tbody) return;
+  if (!Array.isArray(routes) || routes.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:16px; color:#666;">No routes assigned</td></tr>';
+    return;
+  }
+  tbody.innerHTML = '';
+  routes.forEach(route => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(route.origin)}</td>
+      <td>${escapeHtml(route.destination)}</td>
+      <td>${escapeHtml(route.fare)}</td>
+      <td>${escapeHtml(route.departure_time || '')}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderOperatorBookings(bookings) {
+  const tbody = document.getElementById('operatorBookingsTableBody');
+  if (!tbody) return;
+  if (!Array.isArray(bookings) || bookings.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:16px; color:#666;">No bookings yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = '';
+  bookings.forEach(booking => {
+    const route = booking.route_details ? `${booking.route_details.origin} → ${booking.route_details.destination}` : '—';
+    const disableCancel = booking.status === 'CANCELLED';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(booking.customer_name || 'Walk-in')}</td>
+      <td>${escapeHtml(route)}</td>
+      <td>${escapeHtml(booking.travel_date || '')}</td>
+      <td>${escapeHtml(booking.status)}</td>
+      <td>
+        <button class="operator-cancel-btn" data-booking="${booking.id}" ${disableCancel ? 'disabled' : ''}>
+          Cancel
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+document.addEventListener('click', async (e) => {
+  if (e.target.classList.contains('operator-cancel-btn')) {
+    const bookingId = e.target.getAttribute('data-booking');
+    e.target.disabled = true;
+    try {
+      await window.operatorCancelBooking(bookingId);
+      alert('Booking cancelled successfully.');
+      initOperatorData();
+    } catch (err) {
+      console.error('Operator cancel failed', err);
+      alert('Failed to cancel booking.');
+      e.target.disabled = false;
+    }
+  }
+});
+
+function escapeHtml(s){ return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+
+<!-- WebSocket client to receive new bookings for operators -->
+<script>
+(function(){
+  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  const wsUrl = `${protocol}://${window.location.host}/ws/operators/`;
+  let socket;
+
+  function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  function renderBookingToTable(b){
+    const tbody = document.querySelector('#bookings table tbody');
+    if (!tbody) return;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(b.customer)}</td>
+      <td>${escapeHtml(b.route)}</td>
+      <td>${escapeHtml(b.date || '')}</td>
+      <td>${escapeHtml(b.status || '')}</td>
+      <td><button onclick="/* no-op */">View</button></td>
+    `;
+    // prepend newest bookings
+    tbody.insertBefore(tr, tbody.firstChild);
+  }
+
+  function connect(){
+    socket = new WebSocket(wsUrl);
+    socket.onopen = () => console.log('Operator WS connected');
+    socket.onmessage = (e) => {
+      try{
+        const data = JSON.parse(e.data);
+        if (data.type === 'new_booking' && data.booking){
+          renderBookingToTable(data.booking);
+          // also add a simple card preview
+          const list = document.getElementById('operatorBookingList');
+          if (list){
+            const div = document.createElement('div');
+            div.style.padding = '10px';
+            div.style.marginBottom = '8px';
+            div.style.background = '#fff';
+            div.style.border = '1px solid #e5e7eb';
+            div.innerHTML = `<strong>New booking #${escapeHtml(data.booking.id)}</strong> — ${escapeHtml(data.booking.customer)} / ${escapeHtml(data.booking.route)}`;
+            list.prepend(div);
+          }
+        }
+      }catch(err){ console.error('WS parse error', err); }
+    };
+    socket.onclose = (e) => { console.log('Operator WS closed, reconnecting in 3s', e.reason); setTimeout(connect,3000); };
+    socket.onerror = (err) => { console.error('WS error', err); socket.close(); };
+  }
+
+  document.addEventListener('DOMContentLoaded', () => { connect(); });
+})();
 </script>
 
 </body>

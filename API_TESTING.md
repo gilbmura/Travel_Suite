@@ -254,6 +254,8 @@ curl -X POST http://localhost:8000/api/tickets/validate_ticket/ \
 
 ## 🌐 WebSocket Testing
 
+**⚠️ Important**: WebSocket connections require the server to be running with **Daphne** (not the standard Django dev server). See "Server Management" section below.
+
 ### Bus Location Updates
 
 Connect to WebSocket:
@@ -356,7 +358,10 @@ async function createBooking(bookingData) {
 ## 🔄 Server Management
 
 ```bash
-# Restart server
+# Start server with Daphne (required for WebSocket support)
+daphne -b 0.0.0.0 -p 8000 config.asgi:application
+
+# OR use standard Django server (no WebSocket support)
 python manage.py runserver
 
 # Create new migrations
@@ -368,8 +373,8 @@ python manage.py migrate
 # Access Django shell
 python manage.py shell
 
-# Check database
-sqlite3 db.sqlite3
+# Check database (MySQL)
+mysql -u travel_suite_user -p travel_suite_db
 ```
 
 ---

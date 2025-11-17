@@ -154,7 +154,7 @@ class Migration(migrations.Migration):
             name='Ticket',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('qr_code', models.TextField(unique=True)),
+                ('qr_code', models.CharField(max_length=255, unique=True)),
                 ('is_used', models.BooleanField(default=False)),
                 ('validated_at', models.DateTimeField(blank=True, null=True)),
                 ('booking', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='ticket', to='core.booking')),

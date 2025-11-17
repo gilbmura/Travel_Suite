@@ -36,19 +36,19 @@
     <div class="card-container">
       <div class="card">
         <h3>Total Vehicles</h3>
-        <p id="totalVehicles">3</p>
+        <p id="adminTotalVehicles">0</p>
       </div>
       <div class="card">
         <h3>Total Routes</h3>
-        <p id="totalRoutes">2</p>
+        <p id="adminTotalRoutes">0</p>
       </div>
       <div class="card">
-        <h3>Total Bookings</h3>
-        <p id="totalBookings">1</p>
+        <h3>Active Bookings</h3>
+        <p id="adminActiveBookings">0</p>
       </div>
       <div class="card">
-        <h3>Total Operators</h3>
-        <p id="totalOperators">2</p>
+        <h3>Pending Operators</h3>
+        <p id="adminPendingOperators">0</p>
       </div>
     </div>
   </section>
@@ -56,14 +56,32 @@
   <!-- Operators -->
   <section id="operators" class="hidden">
     <h1>Manage Operators</h1>
-    <table>
-      <thead>
-        <tr><th>Name</th><th>Contact</th><th>Email</th><th>Access</th></tr>
-      </thead>
-      <tbody id="operatorTable">
-        <!-- dynamic operator rows will be inserted here -->
-      </tbody>
-    </table>
+    
+    <!-- Pending Operators Section -->
+    <div style="margin-bottom: 30px; padding: 20px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+      <h2 style="margin-top: 0; color: #856404;">⚠️ Pending Approval</h2>
+      <table>
+        <thead>
+          <tr><th>Company Name</th><th>Username</th><th>Contact</th><th>Email</th><th>License #</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="pendingOperatorTable">
+          <!-- pending operators will be inserted here -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Approved Operators Section -->
+    <div>
+      <h2 style="color: #28a745;">✅ Approved Operators</h2>
+      <table>
+        <thead>
+          <tr><th>Company Name</th><th>Username</th><th>Contact</th><th>Email</th><th>License #</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="operatorTable">
+          <!-- approved operator rows will be inserted here -->
+        </tbody>
+      </table>
+    </div>
   </section>
 
   <!-- Vehicles -->
@@ -73,7 +91,10 @@
       <label>License Plate</label>
       <input type="text" id="plate" required placeholder="RAF 234A">
       <label>Route</label>
-      <input type="text" id="route" required placeholder="KIGALI-MUSANZE">
+      <select id="route" required>
+        <option value="">Select Route</option>
+        <!-- Routes will be populated dynamically -->
+      </select>
       <label>Capacity</label>
       <input type="number" id="capacity" required placeholder="29">
       <button type="submit">Add Vehicle</button>
@@ -84,7 +105,7 @@
         <tr><th>Plate</th><th>Route</th><th>Capacity</th><th>Status</th><th>Actions</th></tr>
       </thead>
       <tbody id="vehicleTable">
-        <tr><td>RAF 234A</td><td>KIGALI–MUSANZE</td><td>45</td><td>Available</td><td><button>Edit</button> <button>Delete</button></td></tr>
+        <!-- Vehicles will be loaded dynamically -->
       </tbody>
     </table>
   </section>
@@ -109,7 +130,7 @@
         <tr><th>Origin</th><th>Destination</th><th>Fare</th><th>Departure</th></tr>
       </thead>
       <tbody id="routeTable">
-        <tr><td>KIGALI</td><td>MUSANZE</td><td>2000 Rwf</td><td>08:00</td></tr>
+        <!-- Routes will be loaded dynamically -->
       </tbody>
     </table>
   </section>
@@ -121,8 +142,8 @@
       <thead>
         <tr><th>Customer</th><th>Route</th><th>Date</th><th>Status</th><th>Actions</th></tr>
       </thead>
-      <tbody>
-        <tr><td>Placide shami</td><td>KIGALI–MUSANZE</td><td>2025-11-10</td><td>Confirmed</td><td><button>Cancel</button></td></tr>
+      <tbody id="adminBookingsTableBody">
+        <tr><td colspan="5" style="text-align:center; padding:16px; color:#666;">Loading bookings...</td></tr>
       </tbody>
     </table>
   </section>
@@ -154,6 +175,20 @@ function showSection(id, liEl) {
   // update active class on sidebar
   document.querySelectorAll('.sidebar ul li').forEach(li => li.classList.remove('active'));
   if (liEl) liEl.classList.add('active');
+  // Load routes when vehicles section is shown
+  if (id === 'vehicles') {
+    if (typeof loadRoutesForVehicles === 'function') {
+      loadRoutesForVehicles();
+    }
+    if (typeof loadVehicles === 'function') {
+      loadVehicles();
+    }
+  }
+  
+  // Load routes when routes section is shown
+  if (id === 'routes' && typeof loadRoutes === 'function') {
+    loadRoutes();
+  }
 }
 
 // Wait until DOM is ready before attaching handlers
@@ -167,85 +202,347 @@ document.addEventListener('DOMContentLoaded', () => {
     showSection(id, activeLi);
   }
 
-  // Add new vehicle (simulation) safely
+  // Load routes for vehicle dropdown
+  async function loadRoutesForVehicles() {
+    const routeSelect = document.getElementById('route');
+    if (!routeSelect) return;
+    
+    try {
+      const response = await window.apiFetch('/routes/');
+      const routes = Array.isArray(response) ? response : (response.results || []);
+      
+      // Clear existing options except the first "Select Route" option
+      while (routeSelect.options.length > 1) {
+        routeSelect.remove(1);
+      }
+      
+      // Populate dropdown with routes in format "ORIGIN–DESTINATION"
+      routes.forEach(route => {
+        const option = document.createElement('option');
+        option.value = route.id; // Store route ID
+        option.textContent = `${route.origin}–${route.destination}`; // Display format
+        routeSelect.appendChild(option);
+      });
+    } catch (err) {
+      console.error('Failed to load routes for vehicle form', err);
+    }
+  }
+
+  // Load vehicles from API
+  async function loadVehicles() {
+    const table = document.getElementById('vehicleTable');
+    if (!table) return;
+    
+    try {
+      const response = await window.apiFetch('/vehicles/');
+      const vehicles = Array.isArray(response) ? response : (response.results || []);
+      
+      table.innerHTML = '';
+      if (!Array.isArray(vehicles) || vehicles.length === 0) {
+        table.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#666;">No vehicles found</td></tr>';
+        return;
+      }
+      
+      vehicles.forEach(vehicle => {
+        const row = document.createElement('tr');
+        const routeDisplay = vehicle.route_details 
+          ? `${vehicle.route_details.origin}–${vehicle.route_details.destination}`
+          : 'No Route';
+        row.innerHTML = `
+          <td>${vehicle.license_plate || ''}</td>
+          <td>${routeDisplay}</td>
+          <td>${vehicle.capacity || 0}</td>
+          <td>${vehicle.status || 'Available'}</td>
+          <td><button>Edit</button> <button>Delete</button></td>
+        `;
+        table.appendChild(row);
+      });
+    } catch (err) {
+      console.error('Failed to load vehicles', err);
+      table.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#d9534f;">Failed to load vehicles</td></tr>';
+    }
+  }
+
+  // Update vehicle form to call API
   const vehicleForm = document.getElementById('addVehicleForm');
   if (vehicleForm) {
-    vehicleForm.addEventListener('submit', e => {
+    vehicleForm.addEventListener('submit', async e => {
       e.preventDefault();
       const plate = document.getElementById('plate')?.value.trim() || '';
-      const route = document.getElementById('route')?.value.trim() || '';
-      const cap = document.getElementById('capacity')?.value.trim() || '';
-      const row = `<tr><td>${plate}</td><td>${route}</td><td>${cap}</td><td>Available</td><td><button>Edit</button> <button>Delete</button></td></tr>`;
-      const table = document.getElementById('vehicleTable');
-      if (table) table.insertAdjacentHTML('beforeend', row);
-      e.target.reset();
-      // small non-blocking feedback
-      const prev = document.querySelector('#vehicles .alert');
-      if (prev) prev.remove();
-      const alert = document.createElement('div');
-      alert.className = 'alert success';
-      alert.textContent = '✅ Vehicle added successfully!';
-      document.getElementById('vehicles').insertBefore(alert, table);
-      setTimeout(() => alert.remove(), 2500);
+      const routeId = document.getElementById('route')?.value || '';
+      const capacity = document.getElementById('capacity')?.value.trim() || '';
+      
+      if (!plate || !routeId || !capacity) {
+        alert('Please fill all fields');
+        return;
+      }
+      
+      try {
+        await window.apiFetch('/vehicles/', 'POST', {
+          license_plate: plate,
+          route: parseInt(routeId), // Send route ID, not string
+          capacity: parseInt(capacity),
+          status: 'Available'
+        });
+        e.target.reset();
+        loadVehicles(); // Reload vehicles table
+        
+        // Show success message
+        const prev = document.querySelector('#vehicles .alert');
+        if (prev) prev.remove();
+        const alert = document.createElement('div');
+        alert.className = 'alert success';
+        alert.textContent = '✅ Vehicle added successfully!';
+        const tableElement = document.querySelector('#vehicles table');
+        if (tableElement) {
+          document.getElementById('vehicles').insertBefore(alert, tableElement);
+        } else {
+          document.getElementById('vehicles').appendChild(alert);
+        }
+        setTimeout(() => alert.remove(), 2500);
+      } catch (err) {
+        alert('Failed to add vehicle: ' + (err.message || 'Unknown error'));
+      }
     });
   }
 
-  // Add new route (simulation) safely
+  // Load routes from API
+  async function loadRoutes() {
+    const table = document.getElementById('routeTable');
+    if (!table) return;
+    try {
+      const response = await window.apiFetch('/routes/');
+      table.innerHTML = '';
+      
+      // Handle paginated response (DRF returns {count, next, previous, results: [...]})
+      const routes = Array.isArray(response) ? response : (response.results || []);
+      
+      if (!Array.isArray(routes) || routes.length === 0) {
+        table.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:#666;">No routes found</td></tr>';
+        return;
+      }
+      routes.forEach(route => {
+        const row = document.createElement('tr');
+        const origin = route.origin || '';
+        const destination = route.destination || '';
+        const fare = route.fare || 0;
+        const departure = route.departure_time || '';
+        row.innerHTML = `
+          <td>${origin}</td>
+          <td>${destination}</td>
+          <td>${fare} Rwf</td>
+          <td>${departure}</td>
+        `;
+        table.appendChild(row);
+      });
+    } catch (err) {
+      console.error('Failed to load routes', err);
+      table.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:#d9534f;">Failed to load routes</td></tr>';
+    }
+  }
+
+  // Add new route via API
   const routeForm = document.getElementById('addRouteForm');
   if (routeForm) {
-    routeForm.addEventListener('submit', e => {
+    routeForm.addEventListener('submit', async e => {
       e.preventDefault();
-      const o = document.getElementById('origin')?.value.trim() || '';
-      const d = document.getElementById('destination')?.value.trim() || '';
-      const f = document.getElementById('fare')?.value.trim() || '';
-      const dep = document.getElementById('departure')?.value.trim() || '';
-      const row = `<tr><td>${o}</td><td>${d}</td><td>${f}</td><td>${dep}</td></tr>`;
-      const table = document.getElementById('routeTable');
-      if (table) table.insertAdjacentHTML('beforeend', row);
-      e.target.reset();
-      const prev = document.querySelector('#routes .alert');
-      if (prev) prev.remove();
-      const alert = document.createElement('div');
-      alert.className = 'alert success';
-      alert.textContent = '🗺️ New route added!';
-      document.getElementById('routes').insertBefore(alert, table);
-      setTimeout(() => alert.remove(), 2500);
+      const origin = (document.getElementById('origin')?.value.trim() || '').toUpperCase();
+      const destination = (document.getElementById('destination')?.value.trim() || '').toUpperCase();
+      const fare = document.getElementById('fare')?.value.trim() || '';
+      const departure = document.getElementById('departure')?.value.trim() || '';
+      
+      if (!origin || !destination || !fare || !departure) {
+        alert('Please fill all fields');
+        return;
+      }
+      
+      try {
+        await window.apiFetch('/routes/', 'POST', {
+          origin: origin,
+          destination: destination,
+          fare: parseFloat(fare),
+          departure_time: departure
+        });
+        e.target.reset();
+        loadRoutes(); // Reload routes table
+        
+        // Show success message - insert before the table element, not tbody
+        const prev = document.querySelector('#routes .alert');
+        if (prev) prev.remove();
+        const alert = document.createElement('div');
+        alert.className = 'alert success';
+        alert.textContent = '🗺️ New route added!';
+        const tableElement = document.querySelector('#routes table');
+        if (tableElement) {
+          document.getElementById('routes').insertBefore(alert, tableElement);
+        } else {
+          // Fallback: append to routes section
+          document.getElementById('routes').appendChild(alert);
+        }
+        setTimeout(() => alert.remove(), 2500);
+      } catch (err) {
+        alert('Failed to add route: ' + (err.message || 'Unknown error'));
+      }
     });
+  }
+
+  async function loadDashboardCards() {
+    const vehicleEl = document.getElementById('adminTotalVehicles');
+    if (!vehicleEl || typeof window.getAdminDashboardStats !== 'function') return;
+    try {
+      const stats = await window.getAdminDashboardStats();
+      vehicleEl.textContent = stats.total_vehicles ?? 0;
+      document.getElementById('adminTotalRoutes').textContent = stats.total_routes ?? 0;
+      document.getElementById('adminActiveBookings').textContent = stats.active_bookings ?? 0;
+      document.getElementById('adminPendingOperators').textContent = stats.pending_operators ?? 0;
+    } catch (err) {
+      console.error('Failed to load dashboard stats', err);
+      if (typeof showToast === 'function') showToast('Unable to load dashboard stats', 'error');
+    }
+  }
+
+  async function loadAdminBookings() {
+    const tbody = document.getElementById('adminBookingsTableBody');
+    if (!tbody) return;
+    try {
+      const data = await window.apiFetch('/bookings/');
+      if (!Array.isArray(data) || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#666;">No bookings found</td></tr>';
+        return;
+      }
+      tbody.innerHTML = '';
+      data.forEach(b => {
+        const route = b.route_details ? `${b.route_details.origin} → ${b.route_details.destination}` : '—';
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${escapeHtml(b.customer_name || 'Walk-in')}</td>
+          <td>${escapeHtml(route)}</td>
+          <td>${escapeHtml(b.travel_date || '')}</td>
+          <td>${escapeHtml(b.status || '')}</td>
+          <td><button data-booking="${b.id}" class="admin-cancel-btn">Cancel</button></td>
+        `;
+        tbody.appendChild(row);
+      });
+    } catch (err) {
+      console.error('Failed to load bookings', err);
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#d9534f;">Unable to load bookings</td></tr>';
+    }
   }
 
   // --- Operators list (dynamic) ---
   async function loadOperators() {
     try {
-      const ops = await window.getOperators();
-      renderOperatorRows(ops);
+      // Load pending operators
+      const pendingOps = await window.getPendingOperators();
+      renderPendingOperatorRows(pendingOps);
+      
+      // Load approved operators directly from dedicated endpoint
+      const approvedOps = await window.getApprovedOperators();
+      renderOperatorRows(approvedOps);
     } catch (err) {
       console.error('Failed to load operators', err);
       if (typeof showToast === 'function') showToast('Unable to load operators', 'error');
     }
   }
 
+  function renderPendingOperatorRows(ops) {
+    const tbody = document.getElementById('pendingOperatorTable');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    
+    if (ops.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #666;">No pending operators</td></tr>';
+      return;
+    }
+    
+    ops.forEach(op => {
+      const tr = document.createElement('tr');
+      const name = op.username || 'N/A';
+      const contact = op.phone_number || '-';
+      const email = op.email || '-';
+      const companyName = op.company_name || '-';
+      const licenseNumber = op.license_number || '-';
+      
+      const approveBtn = document.createElement('button');
+      approveBtn.className = 'grant-btn';
+      approveBtn.textContent = 'Approve';
+      approveBtn.style.background = '#28a745';
+      approveBtn.style.color = 'white';
+      approveBtn.style.padding = '8px 16px';
+      approveBtn.style.border = 'none';
+      approveBtn.style.borderRadius = '4px';
+      approveBtn.style.cursor = 'pointer';
+      approveBtn.disabled = false;
+      
+      approveBtn.addEventListener('click', async () => {
+        approveBtn.disabled = true;
+        approveBtn.textContent = 'Approving...';
+        try {
+          await window.approveOperator(op.id, true);
+          if (typeof showToast === 'function') showToast('Operator approved successfully!', 'success');
+          // Reload operators to update the display
+          loadOperators();
+        } catch (e) {
+          console.error('approve failed', e);
+          if (typeof showToast === 'function') showToast('Failed to approve operator', 'error');
+        } finally {
+          approveBtn.disabled = false;
+        }
+      });
+
+      tr.innerHTML = `
+        <td>${escapeHtml(companyName)}</td>
+        <td>${escapeHtml(name)}</td>
+        <td>${escapeHtml(contact)}</td>
+        <td>${escapeHtml(email)}</td>
+        <td>${escapeHtml(licenseNumber)}</td>
+      `;
+      const td = document.createElement('td');
+      td.appendChild(approveBtn);
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+    });
+  }
+
   function renderOperatorRows(ops) {
     const tbody = document.getElementById('operatorTable');
     if (!tbody) return;
     tbody.innerHTML = '';
+    
+    if (ops.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #666;">No approved operators</td></tr>';
+      return;
+    }
+    
     ops.forEach(op => {
       const tr = document.createElement('tr');
-      const name = ((op.first_name || '') + ' ' + (op.last_name || '')).trim() || op.username || 'N/A';
+      const name = op.username || 'N/A';
       const contact = op.phone_number || '-';
       const email = op.email || '-';
+      const companyName = op.company_name || op.username || '-';
+      const licenseNumber = op.license_number || '-';
+      const status = op.is_active ? 'Active' : 'Inactive';
+      const statusColor = op.is_active ? '#28a745' : '#dc3545';
+      
       const accessBtn = document.createElement('button');
       accessBtn.className = op.is_active ? 'revoke-btn' : 'grant-btn';
       accessBtn.textContent = op.is_active ? 'Revoke Access' : 'Grant Access';
+      accessBtn.style.padding = '8px 16px';
+      accessBtn.style.border = 'none';
+      accessBtn.style.borderRadius = '4px';
+      accessBtn.style.cursor = 'pointer';
+      accessBtn.style.background = op.is_active ? '#dc3545' : '#28a745';
+      accessBtn.style.color = 'white';
       accessBtn.disabled = false;
+      
       accessBtn.addEventListener('click', async () => {
         accessBtn.disabled = true;
         const targetState = !op.is_active;
         try {
           await window.toggleOperatorAccess(op.id, targetState);
-          op.is_active = targetState;
-          accessBtn.textContent = op.is_active ? 'Revoke Access' : 'Grant Access';
-          accessBtn.className = op.is_active ? 'revoke-btn' : 'grant-btn';
           if (typeof showToast === 'function') showToast('Operator access updated', 'success');
+          // Reload operators to update the display
+          loadOperators();
         } catch (e) {
           console.error('toggle access failed', e);
           if (typeof showToast === 'function') showToast('Failed to update access', 'error');
@@ -254,7 +551,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
 
-      tr.innerHTML = `<td>${escapeHtml(name)}</td><td>${escapeHtml(contact)}</td><td>${escapeHtml(email)}</td>`;
+      tr.innerHTML = `
+        <td>${escapeHtml(companyName)}</td>
+        <td>${escapeHtml(name)}</td>
+        <td>${escapeHtml(contact)}</td>
+        <td>${escapeHtml(email)}</td>
+        <td>${escapeHtml(licenseNumber)}</td>
+        <td style="color: ${statusColor}; font-weight: bold;">${status}</td>
+      `;
       const td = document.createElement('td');
       td.appendChild(accessBtn);
       tr.appendChild(td);
@@ -264,7 +568,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function escapeHtml(s){ return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-  // load operators when admin page loads
+  document.addEventListener('click', async (e) => {
+    if (e.target.classList.contains('admin-cancel-btn')) {
+      const bookingId = e.target.getAttribute('data-booking');
+      e.target.disabled = true;
+      try {
+        await window.apiFetch(`/bookings/${bookingId}/cancel/`, 'POST');
+        if (typeof showToast === 'function') showToast('Booking cancelled', 'success');
+        loadAdminBookings();
+        loadDashboardCards();
+      } catch (err) {
+        console.error('Cancel booking failed', err);
+        if (typeof showToast === 'function') showToast('Failed to cancel booking', 'error');
+      } finally {
+        e.target.disabled = false;
+      }
+    }
+  });
+
+  // load data when admin page loads
+  loadDashboardCards();
+  loadAdminBookings();
   loadOperators();
 });
 

@@ -151,19 +151,11 @@
       <label>Origin</label>
       <select id="origin" required>
         <option value="">Select Origin</option>
-        <option>KIGALI</option>
-        <option>MUSANZE</option>
-        <option>KAYONZA</option>
-        <option>NYAGATARE</option>
       </select>
 
       <label>Destination</label>
       <select id="destination" required>
         <option value="">Select Destination</option>
-        <option>KIGALI</option>
-        <option>KAYONZA</option>
-        <option>MUSANZE</option>
-        <option>RUBAVU</option>
       </select>
 
       <label>Travel Date</label>
@@ -175,6 +167,7 @@
     <!-- Step 2: Show Available Vehicles -->
     <div id="vehicleResults" style="display:none;">
       <h2>Available Cars</h2>
+      <div id="vehicleNotice" style="display:none; margin-bottom:12px; padding:12px; background:#fff3cd; color:#856404; border-radius:6px;"></div>
       <table>
         <thead>
           <tr>
@@ -205,6 +198,16 @@
       <label>Total Fare</label>
       <input type="text" id="fareDisplay" readonly>
 
+      <label>Seats to Book</label>
+      <input type="number" id="seatCount" min="1" value="1" required>
+
+      <label>Payment Method</label>
+      <select id="paymentMethod">
+        <option value="Cash">Cash</option>
+        <option value="Card">Card</option>
+        <option value="MobileMoney">Mobile Money</option>
+      </select>
+
       <button type="submit" class="btn">Confirm Booking</button>
     </form>
   </section>
@@ -222,112 +225,237 @@
 
 <footer>© 2025 SmartBus | Travel Made Easy</footer>
 
+<script src="scripts.js"></script>
 <!-- QR Generator -->
 <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
 
 <script>
-// === Sample Route Data ===
-const routeData = [
-  { origin: 'KIGALI', destination: 'MUSANZE', vehicles: [
-    { license_plate: 'RAF 234A', departure_time: '08:00', fare: 2000, available_seats: 10 },
-    { license_plate: 'RAC 998C', departure_time: '14:00', fare: 2000, available_seats: 3 }
-  ]},
-  { origin: 'KIGALI', destination: 'KAYONZA', vehicles: [
-    { license_plate: 'RAA 771B', departure_time: '09:30', fare: 2500, available_seats: 7 },
-    { license_plate: 'RAC 123D', departure_time: '16:00', fare: 2500, available_seats: 2 }
-  ]}
-];
-
 const searchBtn = document.getElementById('searchBtn');
 const vehicleResults = document.getElementById('vehicleResults');
 const vehicleTableBody = document.getElementById('vehicleTableBody');
+const vehicleNotice = document.getElementById('vehicleNotice');
 const travelerForm = document.getElementById('travelerForm');
 const selectedVehicleInput = document.getElementById('selectedVehicle');
 const fareDisplay = document.getElementById('fareDisplay');
 const ticketModal = document.getElementById('ticketModal');
 const ticketDetails = document.getElementById('ticketDetails');
+const seatCountInput = document.getElementById('seatCount');
+const paymentMethodInput = document.getElementById('paymentMethod');
 
-// Step 1: Search
-searchBtn.addEventListener('click', () => {
-  const origin = document.getElementById('origin').value;
-  const destination = document.getElementById('destination').value;
-  const date = document.getElementById('travelDate').value;
+let searchResults = [];
+let selectedVehicleId = null;
+let selectedOrigin = null;
+let selectedDestination = null;
+let selectedFare = 0;
+let selectedTravelDate = null;
 
-  if (!origin || !destination || !date) {
+function escapeHtml(value) {
+  return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Populate origin and destination dropdowns from database
+async function populateRouteFilters() {
+  const originSelect = document.getElementById('origin');
+  const destinationSelect = document.getElementById('destination');
+  
+  if (!originSelect || !destinationSelect) {
+    console.warn('Origin or destination select elements not found');
+    return;
+  }
+  
+  try {
+    // Try to use window.getRouteFilters, or fallback to direct fetch
+    let filters;
+    if (typeof window.getRouteFilters === 'function') {
+      filters = await window.getRouteFilters();
+    } else {
+      // Fallback: direct fetch if function not available
+      console.warn('getRouteFilters not available, using direct fetch');
+      const API_ROOT = 'http://127.0.0.1:8000/api';
+      const res = await fetch(`${API_ROOT}/routes/filters/`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!res.ok) throw new Error('Failed to load route filters');
+      filters = await res.json();
+    }
+    
+    const origins = filters.origins || [];
+    const destinations = filters.destinations || [];
+    
+    console.log('Loaded route filters:', { origins, destinations });
+    
+    // Clear existing options except the first "Select" option
+    while (originSelect.options.length > 1) {
+      originSelect.remove(1);
+    }
+    while (destinationSelect.options.length > 1) {
+      destinationSelect.remove(1);
+    }
+    
+    // Populate origin dropdown
+    origins.forEach(origin => {
+      const option = document.createElement('option');
+      option.value = origin;
+      option.textContent = origin;
+      originSelect.appendChild(option);
+    });
+    
+    // Populate destination dropdown
+    destinations.forEach(destination => {
+      const option = document.createElement('option');
+      option.value = destination;
+      option.textContent = destination;
+      destinationSelect.appendChild(option);
+    });
+  } catch (err) {
+    console.error('Failed to load route filters', err);
+    // Show user-friendly error message
+    const errorMsg = document.createElement('div');
+    errorMsg.style.cssText = 'color: #ff6b6b; padding: 10px; text-align: center; background: rgba(255,255,255,0.1); border-radius: 4px; margin: 10px 0;';
+    errorMsg.textContent = 'Failed to load routes. Please refresh the page.';
+    const form = document.querySelector('.booking-form');
+    if (form && !form.querySelector('.error-msg')) {
+      errorMsg.className = 'error-msg';
+      form.insertBefore(errorMsg, form.firstChild);
+    }
+  }
+}
+
+// Load route filters when page loads
+document.addEventListener('DOMContentLoaded', () => {
+  // Wait a bit for scripts.js to load
+  if (typeof window.getRouteFilters === 'function') {
+    populateRouteFilters();
+  } else {
+    // Retry after a short delay
+    setTimeout(populateRouteFilters, 200);
+  }
+});
+
+searchBtn.addEventListener('click', async () => {
+  const origin = document.getElementById('origin').value.trim().toUpperCase();
+  const destination = document.getElementById('destination').value.trim().toUpperCase();
+  const travelDate = document.getElementById('travelDate').value;
+
+  if (!origin || !destination || !travelDate) {
     alert('Please select origin, destination and date.');
     return;
   }
 
-  const foundRoute = routeData.find(r => r.origin === origin && r.destination === destination);
-  vehicleTableBody.innerHTML = '';
-
-  if (foundRoute) {
-    foundRoute.vehicles.forEach(v => {
-      const row = `
-        <tr>
-          <td>${v.license_plate}</td>
-          <td>${v.departure_time}</td>
-          <td>${v.fare}</td>
-          <td>${v.available_seats}</td>
-          <td><button class="btn selectBtn" 
-              data-plate="${v.license_plate}" 
-              data-fare="${v.fare}" 
-              data-origin="${origin}"
-              data-destination="${destination}">Select</button></td>
-        </tr>`;
-      vehicleTableBody.insertAdjacentHTML('beforeend', row);
-    });
-    vehicleResults.style.display = 'block';
-  } else {
-    vehicleTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">No vehicles for this route.</td></tr>`;
-    vehicleResults.style.display = 'block';
+  try {
+    vehicleTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:16px;">Searching...</td></tr>';
+    if (vehicleNotice) {
+      vehicleNotice.textContent = '';
+      vehicleNotice.style.display = 'none';
+    }
+    const results = await window.searchVehicles({ origin, destination, date: travelDate });
+    searchResults = Array.isArray(results) ? results : [];
+    selectedTravelDate = travelDate;
+    renderVehicleRows(searchResults);
+  } catch (err) {
+    console.error('Vehicle search failed', err);
+    vehicleTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:16px; color:#d9534f;">Unable to load vehicles. Please try again.</td></tr>';
   }
 });
 
-// Step 2: Select Vehicle
-let selectedOrigin, selectedDestination, selectedFare;
+function renderVehicleRows(results) {
+  if (!vehicleTableBody) return;
+  if (!Array.isArray(results) || results.length === 0) {
+    vehicleTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:16px;">No vehicles found for the selected route.</td></tr>';
+    if (vehicleNotice) {
+      vehicleNotice.textContent = 'Sorry, no buses are available for that route on the selected date.';
+      vehicleNotice.style.display = 'block';
+    }
+    travelerForm.style.display = 'none';
+    vehicleResults.style.display = 'block';
+    return;
+  }
+  if (vehicleNotice) {
+    vehicleNotice.textContent = '';
+    vehicleNotice.style.display = 'none';
+  }
+  vehicleTableBody.innerHTML = '';
+  results.forEach(vehicle => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${escapeHtml(vehicle.license_plate)}</td>
+      <td>${escapeHtml(vehicle.departure_time || '')}</td>
+      <td>${escapeHtml(vehicle.fare || '')}</td>
+      <td>${escapeHtml(vehicle.available_seats)}</td>
+      <td><button class="btn selectBtn" data-id="${vehicle.vehicle_id}">Select</button></td>
+    `;
+    vehicleTableBody.appendChild(row);
+  });
+  vehicleResults.style.display = 'block';
+}
+
 document.addEventListener('click', (e) => {
   if (e.target.classList.contains('selectBtn')) {
-    const plate = e.target.dataset.plate;
-    selectedFare = e.target.dataset.fare;
-    selectedOrigin = e.target.dataset.origin;
-    selectedDestination = e.target.dataset.destination;
+    const vehicleId = e.target.getAttribute('data-id');
+    const vehicle = searchResults.find(v => String(v.vehicle_id) === vehicleId);
+    if (!vehicle) return;
 
-    selectedVehicleInput.value = plate;
-    fareDisplay.value = `Rwf${selectedFare}`;
+    selectedVehicleId = vehicle.vehicle_id;
+    selectedOrigin = vehicle.origin;
+    selectedDestination = vehicle.destination;
+    selectedFare = Number(vehicle.fare || 0);
+
+    selectedVehicleInput.value = `${vehicle.license_plate} — ${vehicle.departure_time || ''}`;
+    fareDisplay.value = vehicle.fare ? `Rwf ${vehicle.fare}` : 'N/A';
     travelerForm.style.display = 'block';
     window.scrollTo({ top: travelerForm.offsetTop, behavior: 'smooth' });
   }
 });
 
-// Step 3: Confirm Booking
-travelerForm.addEventListener('submit', (e) => {
+travelerForm.addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (!selectedVehicleId) {
+    alert('Please select a vehicle first.');
+    return;
+  }
 
-  const name = document.getElementById('travelerName').value;
-  const phone = document.getElementById('travelerPhone').value;
-  const id = document.getElementById('travelerID').value;
-  const vehicle = selectedVehicleInput.value;
+  const name = document.getElementById('travelerName').value.trim();
+  const phone = document.getElementById('travelerPhone').value.trim();
+  const seats = parseInt(seatCountInput.value, 10) || 1;
+  const paymentMethod = paymentMethodInput.value || 'Cash';
 
-  // Create Ticket Info
-  const ticketText = `
-  Name: ${name}
-  Phone: ${phone}
-  From: ${selectedOrigin}
-  To: ${selectedDestination}
-  Vehicle: ${vehicle}
-  Fare: $${selectedFare}
-  `;
+  try {
+    const response = await window.createPublicBooking({
+      customer_name: name,
+      vehicle_id: selectedVehicleId,
+      travel_date: selectedTravelDate,
+      seats_booked: seats,
+      payment_method: paymentMethod,
+      payment_details: phone
+    });
 
-  ticketDetails.innerHTML = ticketText.replace(/\n/g, '<br>');
+    const detailsText = `
+      Booking ID: ${response.booking_id}
+      Name: ${name}
+      Phone: ${phone}
+      Route: ${selectedOrigin} → ${selectedDestination}
+      Travel Date: ${selectedTravelDate}
+      Seats: ${seats}
+      Payment Status: ${response.payment_status}
+    `;
 
-  const qr = new QRious({
-    element: document.getElementById('qrCanvas'),
-    value: ticketText,
-    size: 180
-  });
+    ticketDetails.innerHTML = detailsText.replace(/\n/g, '<br>');
+    new QRious({
+      element: document.getElementById('qrCanvas'),
+      value: detailsText,
+      size: 180
+    });
 
-  ticketModal.style.display = 'flex';
+    ticketModal.style.display = 'flex';
+    travelerForm.reset();
+    selectedVehicleInput.value = '';
+    fareDisplay.value = '';
+    seatCountInput.value = 1;
+  } catch (err) {
+    console.error('Booking failed', err);
+    alert(err.message || 'Unable to complete booking.');
+  }
 });
 
 function closeModal() {

@@ -42,6 +42,12 @@
     <label for="email">Email</label>
     <input type="email" id="email" placeholder="your@email.com" required>
     
+    <label for="phone">Phone Number</label>
+    <input type="tel" id="phone" placeholder="+250..." required>
+    
+    <label for="licenseNumber">License Number</label>
+    <input type="text" id="licenseNumber" placeholder="Admin License Number" required>
+    
     <label for="password">Password</label>
     <input type="password" id="password" placeholder="Create a password" required>
     
@@ -77,6 +83,8 @@ document.getElementById('signupForm').addEventListener('submit', async (e) => {
   
   const username = document.getElementById('username').value;
   const email = document.getElementById('email').value;
+  const phone = document.getElementById('phone').value;
+  const licenseNumber = document.getElementById('licenseNumber').value;
   const password = document.getElementById('password').value;
   const confirmPassword = document.getElementById('confirmPassword').value;
   
@@ -89,7 +97,15 @@ document.getElementById('signupForm').addEventListener('submit', async (e) => {
     const response = await fetch(`${API_BASE}/auth/register/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, email, password })
+      body: JSON.stringify({
+        username,
+        email,
+        phone_number: phone,
+        password,
+        password2: confirmPassword,
+        is_admin: true,
+        admin_license_number: licenseNumber
+      })
     });
     
     const data = await response.json();
@@ -98,7 +114,7 @@ document.getElementById('signupForm').addEventListener('submit', async (e) => {
       showAlert('✅ Signup successful! Redirecting to login...', 'success');
       setTimeout(() => window.location.href = 'admin-login.html', 1500);
     } else {
-      const errorMsg = data.error || data.username?.[0] || 'Signup failed';
+      const errorMsg = data.error || data.username?.[0] || Object.values(data).flat()[0] || 'Signup failed';
       showAlert(`❌ ${errorMsg}`, 'error');
     }
   } catch (error) {

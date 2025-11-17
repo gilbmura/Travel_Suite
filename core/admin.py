@@ -4,21 +4,22 @@ Django Admin Configuration for Travel Suite
 
 from django.contrib import admin
 from .models import (
-    User, AdminProfile, OperatorProfile, Customer, Route, Vehicle,
-    Seat, Event, Booking, Ticket, Payment, Transaction
+    User, AdminProfile, OperatorProfile, OperatorAssignment,
+    Customer, Route, Vehicle, Seat, Event, Booking, Ticket,
+    Payment, Transaction, BookingSequence
 )
 
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
-    list_display = ['username', 'email', 'phone_number', 'is_admin', 'is_operator', 'is_active']
-    list_filter = ['is_admin', 'is_operator', 'is_active']
+    list_display = ['username', 'email', 'phone_number', 'is_admin', 'is_operator', 'is_active', 'is_approved']
+    list_filter = ['is_admin', 'is_operator', 'is_active', 'is_approved']
     search_fields = ['username', 'email', 'phone_number']
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
         ('Personal Info', {'fields': ('first_name', 'last_name', 'email')}),
         ('Contact', {'fields': ('phone_number', 'national_id')}),
-        ('Permissions', {'fields': ('is_admin', 'is_operator', 'is_active', 'groups', 'user_permissions')}),
+        ('Permissions', {'fields': ('is_admin', 'is_operator', 'is_active', 'is_approved', 'groups', 'user_permissions')}),
         ('Important Dates', {'fields': ('last_login', 'date_joined')}),
     )
 
@@ -31,9 +32,28 @@ class AdminProfileAdmin(admin.ModelAdmin):
 
 @admin.register(OperatorProfile)
 class OperatorProfileAdmin(admin.ModelAdmin):
-    list_display = ['company_name', 'user', 'license_number']
+    list_display = ['company_name', 'user', 'license_number', 'is_approved']
     search_fields = ['company_name', 'user__username', 'license_number']
-    list_filter = ['company_name']
+    list_filter = ['is_approved', 'company_name']
+    actions = ['approve_operators', 'revoke_operators']
+    
+    def approve_operators(self, request, queryset):
+        queryset.update(is_approved=True)
+        # Also activate the users
+        for profile in queryset:
+            profile.user.is_active = True
+            profile.user.save()
+        self.message_user(request, f"{queryset.count()} operators approved.")
+    approve_operators.short_description = "Approve selected operators"
+    
+    def revoke_operators(self, request, queryset):
+        queryset.update(is_approved=False)
+        # Also deactivate the users
+        for profile in queryset:
+            profile.user.is_active = False
+            profile.user.save()
+        self.message_user(request, f"{queryset.count()} operators revoked.")
+    revoke_operators.short_description = "Revoke selected operators"
 
 
 @admin.register(Customer)
@@ -98,15 +118,16 @@ class EventAdmin(admin.ModelAdmin):
 
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
-    list_display = ['id', 'customer', 'date', 'status', 'amount']
-    search_fields = ['customer__name', 'id']
-    list_filter = ['status', 'date']
+    list_display = ['booking_id', 'customer_name', 'route', 'vehicle', 'travel_date', 'status', 'seats_booked', 'amount']
+    search_fields = ['booking_id', 'customer_name', 'customer__name']
+    list_filter = ['status', 'travel_date', 'route']
     fieldsets = (
-        ('Booking Information', {'fields': ('customer', 'event', 'route')}),
-        ('Seat & Amount', {'fields': ('seat_number', 'amount')}),
-        ('Status', {'fields': ('status', 'date')}),
+        ('Booking Information', {'fields': ('booking_id', 'customer', 'customer_name', 'event', 'route', 'vehicle')}),
+        ('Seat & Amount', {'fields': ('seat_number', 'seats_booked', 'amount')}),
+        ('Status', {'fields': ('status', 'travel_date')}),
         ('Timestamps', {'fields': ('created_at', 'timestamp'), 'classes': ('collapse',)}),
     )
+    readonly_fields = ['booking_id', 'created_at', 'timestamp']
 
 
 @admin.register(Ticket)
@@ -144,3 +165,17 @@ class TransactionAdmin(admin.ModelAdmin):
         ('Status', {'fields': ('payment_status',)}),
         ('Timestamp', {'fields': ('timestamp',), 'classes': ('collapse',)}),
     )
+
+
+@admin.register(OperatorAssignment)
+class OperatorAssignmentAdmin(admin.ModelAdmin):
+    list_display = ['operator', 'route', 'assigned_at']
+    search_fields = ['operator__company_name', 'operator__user__username', 'route__origin', 'route__destination']
+    list_filter = ['route']
+
+
+@admin.register(BookingSequence)
+class BookingSequenceAdmin(admin.ModelAdmin):
+    list_display = ['name', 'last_number', 'updated_at']
+    search_fields = ['name']
+    readonly_fields = ['updated_at']

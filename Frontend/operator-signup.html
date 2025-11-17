@@ -45,6 +45,12 @@
     <label for="phone">Phone Number</label>
     <input type="tel" id="phone" placeholder="+250..." required>
     
+    <label for="companyName">Company Name</label>
+    <input type="text" id="companyName" placeholder="Your Company Name" required>
+    
+    <label for="licenseNumber">License Number</label>
+    <input type="text" id="licenseNumber" placeholder="Operator License Number" required>
+    
     <label for="password">Password</label>
     <input type="password" id="password" placeholder="Create a password" required>
     
@@ -81,6 +87,8 @@ document.getElementById('signupForm').addEventListener('submit', async (e) => {
   const username = document.getElementById('username').value;
   const email = document.getElementById('email').value;
   const phone = document.getElementById('phone').value;
+  const companyName = document.getElementById('companyName').value;
+  const licenseNumber = document.getElementById('licenseNumber').value;
   const password = document.getElementById('password').value;
   const confirmPassword = document.getElementById('confirmPassword').value;
   
@@ -93,16 +101,26 @@ document.getElementById('signupForm').addEventListener('submit', async (e) => {
     const response = await fetch(`${API_BASE}/auth/register/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, email, phone_number: phone, password })
+      body: JSON.stringify({
+        username,
+        email,
+        phone_number: phone,
+        password,
+        password2: confirmPassword,
+        is_operator: true,
+        company_name: companyName,
+        license_number: licenseNumber
+      })
     });
     
     const data = await response.json();
     
     if (response.ok) {
-      showAlert('✅ Signup successful! Redirecting to login...', 'success');
-      setTimeout(() => window.location.href = 'operator-login.html', 1500);
+      const message = data.message || '✅ Signup successful! Your account is pending admin approval. You will be notified once approved.';
+      showAlert(message, 'success');
+      setTimeout(() => window.location.href = 'operator-login.html', 3000);
     } else {
-      const errorMsg = data.error || data.username?.[0] || 'Signup failed';
+      const errorMsg = data.error || data.username?.[0] || Object.values(data).flat()[0] || 'Signup failed';
       showAlert(`❌ ${errorMsg}`, 'error');
     }
   } catch (error) {

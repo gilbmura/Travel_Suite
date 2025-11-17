@@ -15,6 +15,7 @@ class User(AbstractUser):
     is_operator = models.BooleanField(default=False)
     phone_number = models.CharField(max_length=20, unique=True)
     national_id = models.CharField(max_length=25, unique=True, blank=True, null=True)
+    is_approved = models.BooleanField(default=True)
 
     def __str__(self):
         return self.username
@@ -40,12 +41,27 @@ class OperatorProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='operator_profile')
     company_name = models.CharField(max_length=100)
     license_number = models.CharField(max_length=25, unique=True)
+    is_approved = models.BooleanField(default=False, help_text="Admin approval required before operator can log in")
 
     def __str__(self):
         return f"Operator: {self.company_name}"
 
     class Meta:
         db_table = 'OperatorProfile'
+
+
+class OperatorAssignment(models.Model):
+    """Mapping between Operators and Routes they manage."""
+    operator = models.ForeignKey(OperatorProfile, on_delete=models.CASCADE, related_name='assignments')
+    route = models.ForeignKey('Route', on_delete=models.CASCADE, related_name='operator_assignments')
+    assigned_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.operator.company_name} -> {self.route}"
+
+    class Meta:
+        db_table = 'OperatorAssignment'
+        unique_together = ('operator', 'route')
 
 
 class Customer(models.Model):
@@ -74,6 +90,14 @@ class Route(models.Model):
     fare = models.DecimalField(max_digits=10, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)
     timestamp = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        """Normalize origin and destination to uppercase for case-insensitive matching."""
+        if self.origin:
+            self.origin = self.origin.upper()
+        if self.destination:
+            self.destination = self.destination.upper()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.origin} → {self.destination}"
@@ -135,17 +159,22 @@ class Event(models.Model):
 
 class Booking(models.Model):
     """Booking Model."""
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, db_column='CustomerId')
+    STATUS_CHOICES = [
+        ('CONFIRMED', 'Confirmed'),
+        ('CANCELLED', 'Cancelled'),
+    ]
+
+    booking_id = models.CharField(max_length=20, unique=True, blank=True)
+    customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True, blank=True, db_column='CustomerId')
+    customer_name = models.CharField(max_length=150, blank=True)
     event = models.ForeignKey(Event, on_delete=models.SET_NULL, null=True, blank=True, db_column='EventId')
     route = models.ForeignKey(Route, on_delete=models.SET_NULL, null=True, blank=True, db_column='RouteId')
+    vehicle = models.ForeignKey('Vehicle', on_delete=models.SET_NULL, null=True, blank=True, related_name='bookings')
     seat_number = models.CharField(max_length=20, blank=True)
+    seats_booked = models.PositiveIntegerField(default=1)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    status = models.CharField(
-        max_length=10,
-        choices=[('Pending', 'Pending'), ('Confirmed', 'Confirmed'), ('Cancelled', 'Cancelled')],
-        default='Pending'
-    )
-    date = models.DateField()
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='CONFIRMED')
+    travel_date = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)
     timestamp = models.DateTimeField(auto_now=True)
 
@@ -159,7 +188,7 @@ class Booking(models.Model):
 class Ticket(models.Model):
     """Ticket Model for Validation."""
     booking = models.OneToOneField(Booking, on_delete=models.CASCADE, related_name='ticket')
-    qr_code = models.TextField(unique=True)
+    qr_code = models.CharField(max_length=255, unique=True)
     is_used = models.BooleanField(default=False)
     validated_at = models.DateTimeField(null=True, blank=True)
 
@@ -214,3 +243,16 @@ class Transaction(models.Model):
 
     class Meta:
         db_table = 'Transaction'
+
+
+class BookingSequence(models.Model):
+    """Simple sequence table to generate human-friendly booking IDs."""
+    name = models.CharField(max_length=50, unique=True, default='default')
+    last_number = models.PositiveIntegerField(default=1000)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.name}: {self.last_number}"
+
+    class Meta:
+        db_table = 'BookingSequence'

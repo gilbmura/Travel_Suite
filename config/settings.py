@@ -17,7 +17,7 @@ ALLOWED_HOSTS = ['*']
 
 # Application definition
 INSTALLED_APPS = [
-    # 'daphne',  # Temporarily disabled to use Django WSGI server
+    'daphne',  # Must be first for ASGI/WebSocket support
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -66,24 +66,24 @@ WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
 # Database configuration - SQLite for development, MySQL for production
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-    }
-}
-
-# Uncomment below for MySQL database connection
 # DATABASES = {
 #     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'travel_suite_db',  # Change to your database name
-#         'USER': 'root',              # Change to your MySQL user
-#         'PASSWORD': 'password',      # Change to your MySQL password
-#         'HOST': 'localhost',
-#         'PORT': '3306',
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
 #     }
 # }
+
+# Uncomment below for MySQL database connection
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'travel_suite_db',  # Change to your database name
+        'USER': 'travel_suite_user',  # Change to your MySQL user
+        'PASSWORD': 'root',      # Change to your MySQL password
+        'HOST': 'localhost',
+        'PORT': '3306',
+    }
+}
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -144,6 +144,11 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }
+
+# Authorised admin usernames that can access the app (besides superusers)
+AUTHORIZED_ADMIN_USERNAMES = [
+    'admin',
+]
 
 # CORS Configuration
 CORS_ALLOWED_ORIGINS = [

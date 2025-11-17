@@ -89,3 +89,25 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             'message': event.get('message'),
             'data': event.get('data'),
         }))
+
+
+class OperatorConsumer(AsyncWebsocketConsumer):
+    """WebSocket consumer for operators to receive booking events."""
+    async def connect(self):
+        # Optionally check user role; allow connection but only subscribe to group
+        # if the user is authenticated. This is a simple approach; you can
+        # extend it to restrict by user.is_operator.
+        self.group_name = 'operators'
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+    async def new_booking(self, event):
+        """Receive booking event from group and forward to WS client."""
+        # event expected to contain a 'booking' dict
+        await self.send(text_data=json.dumps({
+            'type': 'new_booking',
+            'booking': event.get('booking')
+        }))
