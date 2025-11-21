@@ -11,13 +11,53 @@ A Rwanda-focused travel booking system with real-time seat availability, operato
 - **Auto-refund Cancellations**: Automatic refunds for cancellations >1 hour before departure
 - **Recurring Schedules**: Support for daily/weekly recurring schedules
 
+## MVP Status
+
+**Important**: This is a **Minimum Viable Product (MVP)** designed for demonstration and development purposes. As such, certain external services use placeholder credentials and will not function until real credentials are configured.
+
+### What Works in MVP Mode
+
+✅ **Fully Functional:**
+- Route and schedule management
+- Booking creation and management
+- Seat availability tracking
+- Payment processing (mocked)
+- Operator and admin dashboards
+- Database operations
+- All core booking features
+
+❌ **Not Configured (Expected in MVP):**
+- **SMS Notifications (Twilio)**: Uses placeholder credentials - SMS will not be sent, but bookings will still work
+- **Email Notifications**: Uses placeholder SMTP settings - emails will not be sent, but bookings will still work
+- **Real Payment Processing**: Payments are mocked by default - transactions are simulated
+
+### Why External Services Don't Work
+
+The MVP includes placeholder credentials for external services to demonstrate the integration points. This is **intentional and expected**:
+
+1. **Twilio SMS**: The system attempts to send SMS but will fail with authentication errors if placeholder credentials are used. This is normal for MVP - bookings are still created successfully.
+
+2. **Email (SMTP)**: Email sending will fail with placeholder SMTP credentials. This is normal for MVP - bookings are still created successfully.
+
+3. **Payment Processing**: Payments are mocked by default (`PAYMENTS_MODE=mock`). Real payment processing requires integration with actual MTN/Airtel APIs.
+
+### For Production Use
+
+To enable these services in production:
+1. **Twilio**: Sign up at https://www.twilio.com/ and add real credentials to `.env`
+2. **Email**: Configure real SMTP settings (Gmail, SendGrid, etc.) in `.env`
+3. **Payments**: Replace mock adapters with real MTN/Airtel API integrations
+
+**Note**: Bookings will work perfectly fine without these services - they are optional enhancements for notifications and payment processing.
+
 ## Tech Stack
 
 - **Backend**: Python 3.10+, Django 4.x, Django REST Framework
 - **Database**: MySQL (using PyMySQL for easy Windows installation)
 - **Frontend**: Vanilla JavaScript, Responsive HTML/CSS
-- **SMS**: Twilio (placeholder credentials)
-- **Payments**: MTN + Airtel (mocked adapters, `PAYMENTS_MODE=mock|live`)
+- **SMS**: Twilio (placeholder credentials in MVP - requires real credentials for production)
+- **Payments**: MTN + Airtel (mocked adapters in MVP, `PAYMENTS_MODE=mock|live`)
+- **Email**: SMTP (placeholder settings in MVP - requires real SMTP credentials for production)
 
 ## Installation
 
@@ -459,10 +499,12 @@ python manage.py test payments.tests
 
 The system supports two payment modes:
 
-- **`mock`** (default): Simulates payment processing with delays and testable transaction IDs. Use this for development and testing.
-- **`live`**: Connects to real MTN/Airtel payment APIs. Replace mock adapter methods with actual API calls.
+- **`mock`** (default): Simulates payment processing with delays and testable transaction IDs. Use this for development and testing. **This is the default for MVP.**
+- **`live`**: Connects to real MTN/Airtel payment APIs. Replace mock adapter methods with actual API calls. **Requires real payment provider integrations.**
 
 To toggle payment mode, set `PAYMENTS_MODE=mock` or `PAYMENTS_MODE=live` in your `.env` file.
+
+**MVP Note**: In MVP mode, payments are mocked by default. All bookings will be processed successfully, but no actual money transactions occur. This allows full testing of the booking system without requiring payment provider accounts.
 
 ## API Documentation
 
@@ -704,12 +746,40 @@ python manage.py generate_schedule_occurrences --days 60
 
 ### Payment/SMS/Email Errors
 
-**Note**: In MVP mode (`PAYMENTS_MODE=mock`), payment processing is simulated. SMS and email will fail with placeholder credentials, but bookings will still work.
+**This is Expected in MVP Mode!**
+
+The following errors are **normal and expected** in MVP mode:
+
+1. **Twilio Authentication Errors**:
+   - **Error**: `Authentication Error - invalid username` or `Unable to create record`
+   - **Cause**: Placeholder Twilio credentials in `.env` file
+   - **Impact**: SMS will not be sent, but **bookings will still work perfectly**
+   - **Solution for MVP**: Leave Twilio credentials empty in `.env`:
+     ```env
+     TWILIO_SID=
+     TWILIO_TOKEN=
+     TWILIO_FROM=
+     ```
+   - **Solution for Production**: Add real Twilio credentials from https://www.twilio.com/
+
+2. **Email Sending Failures**:
+   - **Error**: SMTP authentication errors or connection failures
+   - **Cause**: Placeholder SMTP credentials in `.env` file
+   - **Impact**: Emails will not be sent, but **bookings will still work perfectly**
+   - **Solution for MVP**: Leave email settings empty or use placeholders
+   - **Solution for Production**: Configure real SMTP settings (Gmail, SendGrid, etc.)
+
+3. **Payment Processing**:
+   - **Status**: Payments are mocked by default (`PAYMENTS_MODE=mock`)
+   - **Impact**: All bookings process successfully with simulated payments
+   - **Solution for Production**: Replace mock adapters with real MTN/Airtel API integrations
+
+**Important**: These errors do not prevent bookings from being created. The system is designed to gracefully handle missing external service credentials. Bookings will be created successfully, and you'll see warnings in the logs about SMS/email failures, which is expected behavior for MVP.
 
 **For production**:
 - Replace mock adapters in `payments/mt_n_adapter.py` and `payments/airtel_adapter.py`
-- Add real Twilio credentials to `.env`
-- Configure SMTP settings in `.env`
+- Add real Twilio credentials to `.env` (sign up at https://www.twilio.com/)
+- Configure real SMTP settings in `.env` (Gmail, SendGrid, AWS SES, etc.)
 
 ### Common Windows-Specific Issues
 
