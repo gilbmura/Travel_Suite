@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Travel Suite</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <style>
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid var(--color-border);
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        .tab {
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: var(--color-text);
+            font-size: 1rem;
+            font-weight: 600;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .tab:hover {
+            background: var(--color-gray-light);
+        }
+        .tab.active {
+            color: var(--color-primary);
+            border-bottom-color: var(--color-primary);
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        .data-table th,
+        .data-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--color-border);
+        }
+        .data-table th {
+            background: var(--color-gray-light);
+            font-weight: 600;
+        }
+        .data-table tr:hover {
+            background: var(--color-gray-light);
+        }
+        .btn-small {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+        .form-inline {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        .form-inline .form-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            overflow: auto;
+        }
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 2rem;
+            border-radius: var(--border-radius-lg);
+            max-width: 600px;
+            width: 90%;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        .close {
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+            color: var(--color-text-light);
+        }
+        .close:hover {
+            color: var(--color-text);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="logo">Travel Suite</div>
+            <nav>
+                <a href="/">Home</a>
+                <a href="/admin/dashboard/">Dashboard</a>
+                <a href="{% url 'admin-logout' %}">Logout</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container" style="margin-top: 2rem;">
+        <h1>Admin Dashboard</h1>
+        <p>Welcome, <strong>{{ user.username }}</strong>!</p>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('districts')">Districts</button>
+            <button class="tab" onclick="showTab('routes')">Routes</button>
+            <button class="tab" onclick="showTab('buses')">Buses</button>
+            <button class="tab" onclick="showTab('schedules')">Schedules</button>
+            <button class="tab" onclick="showTab('bookings')">Bookings</button>
+            <button class="tab" onclick="showTab('operators')">Operators</button>
+            <button class="tab" onclick="showTab('assignments')">Assignments</button>
+        </div>
+
+        <!-- Districts Tab -->
+        <div id="districts" class="tab-content active">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2>Districts</h2>
+                    <button class="btn btn-primary" onclick="openModal('districtModal')">Add District</button>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Code</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="districtsTableBody">
+                        <tr><td colspan="4">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Routes Tab -->
+        <div id="routes" class="tab-content">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2>Routes</h2>
+                    <button class="btn btn-primary" onclick="openModal('routeModal')">Add Route</button>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Origin</th>
+                            <th>Destination</th>
+                            <th>Distance (km)</th>
+                            <th>Fare (RWF)</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="routesTableBody">
+                        <tr><td colspan="7">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Buses Tab -->
+        <div id="buses" class="tab-content">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2>Buses</h2>
+                    <button class="btn btn-primary" onclick="openModal('busModal')">Add Bus</button>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Plate Number</th>
+                            <th>Capacity</th>
+                            <th>Company</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="busesTableBody">
+                        <tr><td colspan="6">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Schedules Tab -->
+        <div id="schedules" class="tab-content">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2>Schedule Recurrences</h2>
+                    <button class="btn btn-primary" onclick="openModal('scheduleModal')">Add Schedule</button>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Route</th>
+                            <th>Bus</th>
+                            <th>Type</th>
+                            <th>Departure</th>
+                            <th>Arrival</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schedulesTableBody">
+                        <tr><td colspan="7">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Bookings Tab -->
+        <div id="bookings" class="tab-content">
+            <div class="card">
+                <h2>Bookings</h2>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Passenger</th>
+                            <th>Phone</th>
+                            <th>Route</th>
+                            <th>Date</th>
+                            <th>Payment</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bookingsTableBody">
+                        <tr><td colspan="8">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Operators Tab -->
+        <div id="operators" class="tab-content">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2>Operators</h2>
+                    <button class="btn btn-primary" onclick="openModal('operatorModal')">Add Operator</button>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Username</th>
+                            <th>Full Name</th>
+                            <th>Phone</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="operatorsTableBody">
+                        <tr><td colspan="7">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Assignments Tab -->
+        <div id="assignments" class="tab-content">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2>Operator Assignments</h2>
+                    <button class="btn btn-primary" onclick="openModal('assignmentModal')">Add Assignment</button>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Operator</th>
+                            <th>Route</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="assignmentsTableBody">
+                        <tr><td colspan="5">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- District Modal -->
+    <div id="districtModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add/Edit District</h2>
+                <span class="close" onclick="closeModal('districtModal')">&times;</span>
+            </div>
+            <form id="districtForm">
+                <input type="hidden" id="districtId" name="id">
+                <div class="form-group">
+                    <label for="districtName">Name *</label>
+                    <input type="text" id="districtName" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="districtCode">Code</label>
+                    <input type="text" id="districtCode" name="code">
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('districtModal')">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Route Modal -->
+    <div id="routeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add/Edit Route</h2>
+                <span class="close" onclick="closeModal('routeModal')">&times;</span>
+            </div>
+            <form id="routeForm">
+                <input type="hidden" id="routeId" name="id">
+                <div class="form-group">
+                    <label for="routeName">Name *</label>
+                    <input type="text" id="routeName" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="routeOrigin">Origin *</label>
+                    <select id="routeOrigin" name="origin_id" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="routeDestination">Destination *</label>
+                    <select id="routeDestination" name="destination_id" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="routeDistance">Distance (km)</label>
+                    <input type="number" id="routeDistance" name="distance_km" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label for="routeDuration">Duration (minutes)</label>
+                    <input type="number" id="routeDuration" name="estimated_duration_minutes">
+                </div>
+                <div class="form-group">
+                    <label for="routeFare">Fare (RWF) *</label>
+                    <input type="number" id="routeFare" name="fare" step="0.01" min="0" value="5000" required>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="routeActive" name="is_active" checked> Active
+                    </label>
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('routeModal')">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bus Modal -->
+    <div id="busModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add/Edit Bus</h2>
+                <span class="close" onclick="closeModal('busModal')">&times;</span>
+            </div>
+            <form id="busForm">
+                <input type="hidden" id="busId" name="id">
+                <div class="form-group">
+                    <label for="busPlate">Plate Number *</label>
+                    <input type="text" id="busPlate" name="plate_number" required>
+                </div>
+                <div class="form-group">
+                    <label for="busCapacity">Capacity *</label>
+                    <input type="number" id="busCapacity" name="capacity" required min="1">
+                </div>
+                <div class="form-group">
+                    <label for="busCompany">Company Name</label>
+                    <input type="text" id="busCompany" name="company_name">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="busActive" name="is_active" checked> Active
+                    </label>
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('busModal')">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Schedule Modal -->
+    <div id="scheduleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="scheduleModalTitle">Add Schedule Recurrence</h2>
+                <span class="close" onclick="closeModal('scheduleModal')">&times;</span>
+            </div>
+            <form id="scheduleForm">
+                <input type="hidden" id="scheduleId" name="id">
+                <div class="form-group">
+                    <label for="scheduleRoute">Route *</label>
+                    <select id="scheduleRoute" name="route_id" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="scheduleBus">Bus *</label>
+                    <select id="scheduleBus" name="bus_id" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="scheduleType">Recurrence Type *</label>
+                    <select id="scheduleType" name="recurrence_type" required>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="scheduleDeparture">Departure Time *</label>
+                    <input type="time" id="scheduleDeparture" name="departure_time" required>
+                </div>
+                <div class="form-group">
+                    <label for="scheduleArrival">Arrival Time *</label>
+                    <input type="time" id="scheduleArrival" name="arrival_time" required>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="scheduleActive" name="is_active" checked> Active
+                    </label>
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('scheduleModal')">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Operator Modal -->
+    <div id="operatorModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Operator</h2>
+                <span class="close" onclick="closeModal('operatorModal')">&times;</span>
+            </div>
+            <form id="operatorForm">
+                <div class="form-group">
+                    <label for="operatorUsername">Username *</label>
+                    <input type="text" id="operatorUsername" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="operatorPassword">Password *</label>
+                    <input type="password" id="operatorPassword" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="operatorFullName">Full Name *</label>
+                    <input type="text" id="operatorFullName" name="full_name" required>
+                </div>
+                <div class="form-group">
+                    <label for="operatorPhone">Phone Number *</label>
+                    <input type="tel" id="operatorPhone" name="phone_number" required>
+                </div>
+                <div class="form-group">
+                    <label for="operatorEmail">Email</label>
+                    <input type="email" id="operatorEmail" name="email">
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('operatorModal')">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Assignment Modal -->
+    <div id="assignmentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Operator Assignment</h2>
+                <span class="close" onclick="closeModal('assignmentModal')">&times;</span>
+            </div>
+            <form id="assignmentForm">
+                <div class="form-group">
+                    <label for="assignmentOperator">Operator *</label>
+                    <select id="assignmentOperator" name="operator_id" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="assignmentRoute">Route *</label>
+                    <select id="assignmentRoute" name="route_id" required></select>
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('assignmentModal')">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    {% load static %}
+    <script src="{% static 'js/main.js' %}"></script>
+    <script src="{% static 'js/admin-dashboard.js' %}"></script>
+</body>
+</html>

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Your Journey - Travel Suite</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="logo">Travel Suite</div>
+            <nav>
+                <a href="/">Home</a>
+                <a href="/routes/">Routes</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container" style="margin-top: 2rem;">
+        <h1>Book Your Journey</h1>
+        
+        <div id="alertContainer"></div>
+        
+        <div class="card">
+            <form id="bookingForm">
+                <div class="form-group">
+                    <label for="passengerName">Full Name *</label>
+                    <input type="text" id="passengerName" name="passengerName" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="phoneNumber">Phone Number *</label>
+                    <input type="tel" id="phoneNumber" name="phoneNumber" placeholder="+250XXXXXXXXX" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">Email (Optional - for QR ticket)</label>
+                    <input type="email" id="email" name="email">
+                </div>
+                
+                <div class="form-group">
+                    <label for="scheduleOccurrenceId">Schedule ID *</label>
+                    <input type="number" id="scheduleOccurrenceId" name="scheduleOccurrenceId" required 
+                           onchange="validateScheduleId()" onblur="validateScheduleId()">
+                    <small>Enter the schedule occurrence ID from the schedules page, or click "Book Now" from the schedules page</small>
+                    <div id="scheduleDetails" style="margin-top: 1rem; padding: 1rem; background: var(--color-bg-light); border-radius: 4px; display: none;">
+                        <h4 style="margin-top: 0;">Schedule Details:</h4>
+                        <p id="scheduleDateDisplay" style="font-weight: bold; color: var(--color-primary);"></p>
+                        <p id="scheduleRouteDisplay"></p>
+                        <p id="scheduleTimeDisplay"></p>
+                        <p id="scheduleSeatsDisplay"></p>
+                        <p id="scheduleStatusDisplay" style="color: var(--color-error); font-weight: bold;"></p>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="paymentMethod">Payment Method *</label>
+                    <select id="paymentMethod" name="paymentMethod" required>
+                        <option value="">Select payment method</option>
+                        <option value="mtn">MTN Mobile Money</option>
+                        <option value="airtel">Airtel Money</option>
+                        <option value="cash">Cash (at terminal)</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" id="submitBtn">Book Now</button>
+            </form>
+        </div>
+        
+        <div id="bookingResult" class="card hidden" style="margin-top: 2rem;"></div>
+    </div>
+
+    {% load static %}
+    <script src="{% static 'js/main.js' %}"></script>
+    <script>
+        // Get schedule ID from localStorage or URL
+        const selectedScheduleId = localStorage.getItem('selectedScheduleId');
+        if (selectedScheduleId) {
+            document.getElementById('scheduleOccurrenceId').value = selectedScheduleId;
+            validateScheduleId(); // Validate immediately if ID is pre-filled
+        }
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const scheduleId = urlParams.get('schedule_id');
+        if (scheduleId) {
+            document.getElementById('scheduleOccurrenceId').value = scheduleId;
+            validateScheduleId(); // Validate immediately if ID is in URL
+        }
+        
+        // Function to validate and display schedule details
+        async function validateScheduleId() {
+            const scheduleIdInput = document.getElementById('scheduleOccurrenceId');
+            const scheduleDetails = document.getElementById('scheduleDetails');
+            const scheduleId = scheduleIdInput.value.trim();
+            
+            if (!scheduleId) {
+                scheduleDetails.style.display = 'none';
+                return;
+            }
+            
+            try {
+                // Fetch schedule details
+                const schedule = await TravelSuite.apiCall(`/schedules/${scheduleId}/`, {
+                    method: 'GET'
+                });
+                
+                // Format date
+                const scheduleDate = new Date(schedule.date);
+                const dateStr = scheduleDate.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+                const today = new Date().toISOString().split('T')[0];
+                const isToday = schedule.date === today;
+                const isFuture = schedule.date > today;
+                const isPast = schedule.date < today;
+                
+                // Display schedule details
+                document.getElementById('scheduleDateDisplay').textContent = 
+                    `📅 ${dateStr} ${isToday ? '(Today)' : isFuture ? '(Future Date)' : isPast ? '(Past Date - Cannot Book)' : ''}`;
+                document.getElementById('scheduleRouteDisplay').textContent = 
+                    `Route: ${schedule.route.name}`;
+                document.getElementById('scheduleTimeDisplay').textContent = 
+                    `Departure: ${schedule.departure_time} | Arrival: ${schedule.arrival_time}`;
+                document.getElementById('scheduleSeatsDisplay').textContent = 
+                    `Remaining Seats: ${schedule.remaining_seats}`;
+                
+                // Show status warning if needed
+                const statusDisplay = document.getElementById('scheduleStatusDisplay');
+                if (schedule.status !== 'scheduled') {
+                    statusDisplay.textContent = `⚠️ Warning: This schedule is ${schedule.status.toUpperCase()}. Booking may not be possible.`;
+                    statusDisplay.style.display = 'block';
+                } else if (isPast) {
+                    statusDisplay.textContent = '⚠️ Warning: This is a past date. Cannot book for past schedules.';
+                    statusDisplay.style.display = 'block';
+                } else if (schedule.remaining_seats <= 0) {
+                    statusDisplay.textContent = '⚠️ Warning: No seats available for this schedule.';
+                    statusDisplay.style.display = 'block';
+                } else {
+                    statusDisplay.style.display = 'none';
+                }
+                
+                scheduleDetails.style.display = 'block';
+            } catch (error) {
+                scheduleDetails.style.display = 'block';
+                document.getElementById('scheduleDateDisplay').textContent = '❌ Schedule not found';
+                document.getElementById('scheduleRouteDisplay').textContent = 
+                    `Error: ${error.message || 'Invalid schedule ID'}`;
+                document.getElementById('scheduleTimeDisplay').textContent = '';
+                document.getElementById('scheduleSeatsDisplay').textContent = '';
+                document.getElementById('scheduleStatusDisplay').textContent = 
+                    '⚠️ Please enter a valid schedule ID';
+                document.getElementById('scheduleStatusDisplay').style.display = 'block';
+            }
+        }
+        
+        document.getElementById('bookingForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = document.getElementById('submitBtn');
+            const alertContainer = document.getElementById('alertContainer');
+            const bookingResult = document.getElementById('bookingResult');
+            const scheduleIdInput = document.getElementById('scheduleOccurrenceId');
+            
+            // Validate schedule before submitting
+            const scheduleId = scheduleIdInput.value.trim();
+            if (!scheduleId) {
+                alertContainer.innerHTML = '<div class="alert alert-error">Please enter a schedule ID</div>';
+                return;
+            }
+            
+            // Check if schedule details are valid
+            try {
+                const schedule = await TravelSuite.apiCall(`/schedules/${scheduleId}/`, {
+                    method: 'GET'
+                });
+                
+                const today = new Date().toISOString().split('T')[0];
+                if (schedule.date < today) {
+                    alertContainer.innerHTML = '<div class="alert alert-error">Cannot book for past dates. Please select a current or future schedule.</div>';
+                    return;
+                }
+                
+                if (schedule.status !== 'scheduled') {
+                    alertContainer.innerHTML = `<div class="alert alert-error">This schedule is ${schedule.status}. Cannot create booking.</div>`;
+                    return;
+                }
+                
+                if (schedule.remaining_seats <= 0) {
+                    alertContainer.innerHTML = '<div class="alert alert-error">No seats available for this schedule. Please select another schedule.</div>';
+                    return;
+                }
+            } catch (error) {
+                alertContainer.innerHTML = `<div class="alert alert-error">Invalid schedule ID: ${error.message || 'Schedule not found'}</div>`;
+                return;
+            }
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Processing...';
+            alertContainer.innerHTML = '';
+            bookingResult.classList.add('hidden');
+            
+            const bookingData = {
+                passenger_name: document.getElementById('passengerName').value,
+                phone_number: document.getElementById('phoneNumber').value,
+                email: document.getElementById('email').value || null,
+                schedule_occurrence_id: parseInt(scheduleId),
+                payment_method: document.getElementById('paymentMethod').value,
+            };
+            
+            try {
+                const result = await TravelSuite.createBooking(bookingData);
+                
+                bookingResult.classList.remove('hidden');
+                bookingResult.innerHTML = `
+                    <div class="alert alert-success">
+                        <h2>Booking Confirmed!</h2>
+                        <p><strong>Booking Reference:</strong> ${result.id}</p>
+                        <p><strong>Status:</strong> ${result.status}</p>
+                        ${result.email ? '<p>Check your email for your QR ticket.</p>' : '<p>Check your SMS for booking confirmation.</p>'}
+                    </div>
+                `;
+                
+                // Clear form
+                document.getElementById('bookingForm').reset();
+                localStorage.removeItem('selectedScheduleId');
+                localStorage.removeItem('selectedScheduleDate');
+                document.getElementById('scheduleDetails').style.display = 'none';
+            } catch (error) {
+                alertContainer.innerHTML = `<div class="alert alert-error">${error.message || 'Booking failed. Please try again.'}</div>`;
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Book Now';
+            }
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operator Dashboard - Travel Suite</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="logo">Travel Suite</div>
+            <nav>
+                <a href="/">Home</a>
+                <a href="/operator/dashboard/">Dashboard</a>
+                <a href="{% url 'operator-logout' %}">Logout</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container" style="margin-top: 2rem;">
+        <h1>Operator Dashboard</h1>
+        
+        <div class="card">
+            <h2>Create Cash Booking</h2>
+            <form id="cashBookingForm">
+                <div class="form-group">
+                    <label for="passengerName">Passenger Name *</label>
+                    <input type="text" id="passengerName" name="passengerName" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="phoneNumber">Phone Number *</label>
+                    <input type="tel" id="phoneNumber" name="phoneNumber" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">Email (Optional)</label>
+                    <input type="email" id="email" name="email">
+                </div>
+                
+                <div class="form-group">
+                    <label for="routeSelect">Route *</label>
+                    <select id="routeSelect" name="routeSelect" required onchange="loadSchedulesForRoute()">
+                        <option value="">Select Route</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="scheduleDate">Date *</label>
+                    <input type="date" id="scheduleDate" name="scheduleDate" required onchange="loadSchedulesForRoute()">
+                </div>
+                
+                <div class="form-group">
+                    <label for="scheduleOccurrenceId">Select Schedule *</label>
+                    <select id="scheduleOccurrenceId" name="scheduleOccurrenceId" required>
+                        <option value="">Select a route and date first</option>
+                    </select>
+                    <small id="scheduleInfo" style="display: block; margin-top: 0.5rem; color: var(--color-text-light);"></small>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Create Booking</button>
+            </form>
+            <div id="bookingAlert"></div>
+        </div>
+        
+        <div class="card" style="margin-top: 2rem;">
+            <h2>Mark Schedule as Departed</h2>
+            <form id="departForm">
+                <div class="form-group">
+                    <label for="departRouteSelect">Route *</label>
+                    <select id="departRouteSelect" name="departRouteSelect" required onchange="loadDepartSchedules()">
+                        <option value="">Select Route</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="departDate">Date *</label>
+                    <input type="date" id="departDate" name="departDate" required onchange="loadDepartSchedules()">
+                </div>
+                
+                <div class="form-group">
+                    <label for="departScheduleId">Select Schedule *</label>
+                    <select id="departScheduleId" name="departScheduleId" required>
+                        <option value="">Select a route and date first</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn btn-success">Mark as Departed</button>
+            </form>
+            <div id="departAlert"></div>
+        </div>
+        
+        <div class="card" style="margin-top: 2rem;">
+            <h2>View Route Bookings</h2>
+            <form id="routeBookingsForm">
+                <div class="form-group">
+                    <label for="bookingsRouteSelect">Route *</label>
+                    <select id="bookingsRouteSelect" name="bookingsRouteSelect" required>
+                        <option value="">Select Route</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-secondary">Load Bookings</button>
+            </form>
+            <div id="bookingsContainer" style="margin-top: 1rem;"></div>
+        </div>
+    </div>
+
+    {% load static %}
+    <script src="{% static 'js/main.js' %}"></script>
+    <script>
+        // Make functions globally accessible
+        window.loadOperatorRoutes = async function() {
+            const routeSelect = document.getElementById('routeSelect');
+            if (!routeSelect) {
+                console.error('Route select element not found');
+                return;
+            }
+            
+            try {
+                // Get operator's assigned routes from API
+                const routes = await TravelSuite.apiCall('/operator/bookings/assigned_routes/');
+                
+                // Show assigned routes
+                const routeList = Array.isArray(routes) ? routes : (routes.results || []);
+                if (routeList.length === 0) {
+                    routeSelect.innerHTML = '<option value="">No routes assigned</option>';
+                    return;
+                }
+                
+                routeSelect.innerHTML = '<option value="">Select Route</option>' +
+                    routeList.map(r => 
+                        `<option value="${r.id}">${r.name} (${r.origin.name} → ${r.destination.name})</option>`
+                    ).join('');
+            } catch (error) {
+                console.error('Error loading assigned routes:', error);
+                // Fallback to all routes if assigned_routes endpoint doesn't work
+                try {
+                    const allRoutes = await TravelSuite.apiCall('/routes/');
+                    const activeRoutes = Array.isArray(allRoutes) ? allRoutes : (allRoutes.results || []);
+                    routeSelect.innerHTML = '<option value="">Select Route</option>' +
+                        activeRoutes.filter(r => r.is_active).map(r => 
+                            `<option value="${r.id}">${r.name} (${r.origin.name} → ${r.destination.name})</option>`
+                        ).join('');
+                } catch (fallbackError) {
+                    console.error('Error loading all routes:', fallbackError);
+                    routeSelect.innerHTML = '<option value="">Error loading routes</option>';
+                }
+            }
+        };
+        
+        // Load schedules for selected route and date
+        window.loadSchedulesForRoute = async function() {
+            const routeId = document.getElementById('routeSelect')?.value;
+            const date = document.getElementById('scheduleDate')?.value;
+            const scheduleSelect = document.getElementById('scheduleOccurrenceId');
+            const scheduleInfo = document.getElementById('scheduleInfo');
+            
+            if (!scheduleSelect || !scheduleInfo) {
+                console.error('Schedule select elements not found');
+                return;
+            }
+            
+            scheduleSelect.innerHTML = '<option value="">Loading...</option>';
+            scheduleInfo.textContent = '';
+            
+            if (!routeId || !date) {
+                scheduleSelect.innerHTML = '<option value="">Select a route and date first</option>';
+                return;
+            }
+            
+            try {
+                const schedules = await TravelSuite.apiCall(`/schedules/?route_id=${routeId}&date=${date}`);
+                const scheduleList = Array.isArray(schedules) ? schedules : (schedules.results || []);
+                
+                if (scheduleList.length === 0) {
+                    scheduleSelect.innerHTML = '<option value="">No schedules available for this date</option>';
+                    scheduleInfo.textContent = '';
+                    return;
+                }
+                
+                scheduleSelect.innerHTML = '<option value="">Select Schedule</option>' +
+                    scheduleList.map(s => {
+                        const seatsClass = s.remaining_seats <= 5 ? 'low' : 'available';
+                        const timeToDeparture = s.time_to_departure ? 
+                            `${Math.floor(s.time_to_departure / 60)}h ${s.time_to_departure % 60}m` : 'N/A';
+                        return `<option value="${s.id}" data-seats="${s.remaining_seats}" data-time="${s.departure_time}">
+                            ${s.departure_time} - ${s.arrival_time} (${s.remaining_seats} seats, ${timeToDeparture} to departure)
+                        </option>`;
+                    }).join('');
+            } catch (error) {
+                console.error('Error loading schedules:', error);
+                scheduleSelect.innerHTML = '<option value="">Error loading schedules</option>';
+                scheduleInfo.textContent = `Error: ${error.message || 'Failed to load schedules'}`;
+            }
+        };
+        
+        // Load routes for "Mark Schedule as Departed" dropdown
+        async function loadDepartRoutes() {
+            try {
+                const routes = await TravelSuite.apiCall('/operator/bookings/assigned_routes/');
+                const routeSelect = document.getElementById('departRouteSelect');
+                if (!routeSelect) return;
+                
+                const routeList = Array.isArray(routes) ? routes : (routes.results || []);
+                routeSelect.innerHTML = '<option value="">Select Route</option>' +
+                    routeList.map(r => 
+                        `<option value="${r.id}">${r.name} (${r.origin.name} → ${r.destination.name})</option>`
+                    ).join('');
+            } catch (error) {
+                console.error('Error loading routes for depart:', error);
+            }
+        }
+
+        // Load schedules for "Mark Schedule as Departed"
+        window.loadDepartSchedules = async function() {
+            const routeId = document.getElementById('departRouteSelect')?.value;
+            const date = document.getElementById('departDate')?.value;
+            const scheduleSelect = document.getElementById('departScheduleId');
+            
+            if (!scheduleSelect) return;
+            
+            scheduleSelect.innerHTML = '<option value="">Loading...</option>';
+            
+            if (!routeId || !date) {
+                scheduleSelect.innerHTML = '<option value="">Select a route and date first</option>';
+                return;
+            }
+            
+            try {
+                const schedules = await TravelSuite.apiCall(`/schedules/?route_id=${routeId}&date=${date}`);
+                const scheduleList = Array.isArray(schedules) ? schedules : (schedules.results || []);
+                
+                // Filter to only show scheduled (not departed) schedules
+                const scheduledOnly = scheduleList.filter(s => s.status === 'scheduled');
+                
+                if (scheduledOnly.length === 0) {
+                    scheduleSelect.innerHTML = '<option value="">No scheduled trips available for this date</option>';
+                    return;
+                }
+                
+                scheduleSelect.innerHTML = '<option value="">Select Schedule</option>' +
+                    scheduledOnly.map(s => {
+                        const timeToDeparture = s.time_to_departure ? 
+                            `${Math.floor(s.time_to_departure / 60)}h ${s.time_to_departure % 60}m` : 'N/A';
+                        return `<option value="${s.id}">
+                            ${s.departure_time} - ${s.arrival_time} (${s.remaining_seats} seats, ${timeToDeparture} to departure)
+                        </option>`;
+                    }).join('');
+            } catch (error) {
+                console.error('Error loading schedules for depart:', error);
+                scheduleSelect.innerHTML = '<option value="">Error loading schedules</option>';
+            }
+        };
+
+        // Load routes for "View Route Bookings" dropdown
+        async function loadBookingsRoutes() {
+            try {
+                const routes = await TravelSuite.apiCall('/operator/bookings/assigned_routes/');
+                const routeSelect = document.getElementById('bookingsRouteSelect');
+                if (!routeSelect) return;
+                
+                const routeList = Array.isArray(routes) ? routes : (routes.results || []);
+                routeSelect.innerHTML = '<option value="">Select Route</option>' +
+                    routeList.map(r => 
+                        `<option value="${r.id}">${r.name} (${r.origin.name} → ${r.destination.name})</option>`
+                    ).join('');
+            } catch (error) {
+                console.error('Error loading routes for bookings:', error);
+            }
+        }
+
+        // Set default date to today and load routes on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('scheduleDate').value = today;
+            const departDateInput = document.getElementById('departDate');
+            if (departDateInput) {
+                departDateInput.value = today; // Set default for depart date too
+            }
+            loadOperatorRoutes();
+            loadDepartRoutes(); // Load routes for "Mark as Departed"
+            loadBookingsRoutes(); // Load routes for "View Route Bookings"
+        });
+        
+        // Update schedule info when selection changes
+        document.getElementById('scheduleOccurrenceId').addEventListener('change', function() {
+            const selected = this.options[this.selectedIndex];
+            const scheduleInfo = document.getElementById('scheduleInfo');
+            
+            if (selected.value) {
+                const seats = selected.getAttribute('data-seats');
+                const time = selected.getAttribute('data-time');
+                scheduleInfo.textContent = `Departure: ${time} | Remaining Seats: ${seats}`;
+            } else {
+                scheduleInfo.textContent = '';
+            }
+        });
+        
+        // Cash Booking
+        document.getElementById('cashBookingForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const alertDiv = document.getElementById('bookingAlert');
+            const form = e.target;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Creating...';
+            
+            try {
+                const bookingData = {
+                    passenger_name: document.getElementById('passengerName').value,
+                    phone_number: document.getElementById('phoneNumber').value,
+                    email: document.getElementById('email').value || null,
+                    schedule_occurrence_id: parseInt(document.getElementById('scheduleOccurrenceId').value),
+                    payment_method: 'cash',
+                };
+                
+                const result = await TravelSuite.apiCall('/operator/bookings/', {
+                    method: 'POST',
+                    body: bookingData,
+                });
+                
+                alertDiv.innerHTML = `<div class="alert alert-success">Booking created successfully! Reference: ${result.id}</div>`;
+                form.reset();
+                // Reset date to today
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('scheduleDate').value = today;
+                loadOperatorRoutes();
+            } catch (error) {
+                alertDiv.innerHTML = `<div class="alert alert-error">${error.message || 'Failed to create booking'}</div>`;
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Create Booking';
+            }
+        });
+        
+        // Mark Departed
+        document.getElementById('departForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const alertDiv = document.getElementById('departAlert');
+            const scheduleId = document.getElementById('departScheduleId').value;
+            
+            if (!scheduleId) {
+                alertDiv.innerHTML = '<div class="alert alert-error">Please select a schedule</div>';
+                return;
+            }
+            
+            try {
+                const result = await TravelSuite.apiCall(`/operator/schedules/${scheduleId}/mark_departed/`, {
+                    method: 'POST',
+                });
+                
+                alertDiv.innerHTML = `<div class="alert alert-success">${result.message || 'Schedule marked as departed'}</div>`;
+                // Reload schedules after marking as departed
+                loadDepartSchedules();
+            } catch (error) {
+                alertDiv.innerHTML = `<div class="alert alert-error">${error.message || 'Failed to mark as departed'}</div>`;
+            }
+        });
+        
+        // View Route Bookings
+        document.getElementById('routeBookingsForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const routeId = document.getElementById('bookingsRouteSelect').value;
+            const container = document.getElementById('bookingsContainer');
+            
+            if (!routeId) {
+                container.innerHTML = '<div class="alert alert-error">Please select a route</div>';
+                return;
+            }
+            
+            try {
+                const bookings = await TravelSuite.apiCall(`/operator/bookings/route_bookings/?route_id=${routeId}`);
+                
+                if (bookings.length === 0) {
+                    container.innerHTML = '<p>No bookings found for this route.</p>';
+                    return;
+                }
+                
+                container.innerHTML = bookings.map(booking => {
+                    // Check if booking can be cancelled (status is pending or confirmed)
+                    const canCancel = booking.status === 'pending' || booking.status === 'confirmed';
+                    const cancelButton = canCancel 
+                        ? `<button class="btn btn-secondary btn-small" onclick="cancelBooking('${booking.id}', ${routeId})" style="margin-top: 0.5rem;">Cancel Booking</button>`
+                        : `<span style="color: var(--color-text-light); font-size: 0.875rem; display: block; margin-top: 0.5rem;">Cannot cancel (${booking.status})</span>`;
+                    
+                    // Format departure date and time
+                    let departureInfo = '';
+                    if (booking.schedule_occurrence) {
+                        const schedule = booking.schedule_occurrence;
+                        const departureDate = new Date(schedule.date);
+                        const dateStr = departureDate.toLocaleDateString('en-US', { 
+                            weekday: 'short', 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric' 
+                        });
+                        departureInfo = `
+                            <p><strong>Departure Date:</strong> ${dateStr}</p>
+                            <p><strong>Departure Time:</strong> ${schedule.departure_time}</p>
+                            <p><strong>Arrival Time:</strong> ${schedule.arrival_time}</p>
+                        `;
+                    }
+                    
+                    return `
+                        <div class="card" style="margin-bottom: 1rem;">
+                            <p><strong>Booking ID:</strong> ${booking.id}</p>
+                            <p><strong>Passenger:</strong> ${booking.passenger_name}</p>
+                            <p><strong>Phone:</strong> ${booking.phone_number}</p>
+                            ${departureInfo}
+                            <p><strong>Status:</strong> ${booking.status}</p>
+                            <p><strong>Created:</strong> ${new Date(booking.created_at).toLocaleString()}</p>
+                            ${cancelButton}
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                container.innerHTML = `<div class="alert alert-error">${error.message || 'Failed to load bookings'}</div>`;
+            }
+        });
+        
+        // Cancel booking function
+        async function cancelBooking(bookingId, routeId) {
+            if (!confirm('Are you sure you want to cancel this booking?')) return;
+            
+            try {
+                const result = await TravelSuite.apiCall(`/bookings/${bookingId}/cancel/`, {
+                    method: 'POST'
+                });
+                
+                // Show success message
+                const refundMsg = result.refund_processed ? ' Refund has been processed.' : '';
+                TravelSuite.showAlert(
+                    `Booking cancelled successfully.${refundMsg}`, 
+                    'success'
+                );
+                
+                // Reload bookings for the current route
+                if (routeId) {
+                    document.getElementById('bookingsRouteSelect').value = routeId;
+                    document.getElementById('routeBookingsForm').dispatchEvent(new Event('submit'));
+                }
+            } catch (error) {
+                TravelSuite.showAlert(`Error: ${error.message || 'Failed to cancel booking'}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
+

@@ -1,212 +1,742 @@
-# TravelSuite - Bus Booking Management System
+# Travel Suite (MVP)
 
-TravelSuite is a comprehensive bus booking management system developed in partnership with Volcano Express, providing online ticket booking services and administrative tools for managing bus operations across Rwanda.
+A Rwanda-focused travel booking system with real-time seat availability, operator-assisted cash bookings, and auto-refund cancellations.
 
-## 🚀 Features
+## Features
 
-### Customer Frontend
-- **Online Booking System**: Easy-to-use interface for booking bus tickets from Nyabugogo and Remera stations to destinations across Rwanda
-- **Seat Selection**: Choose preferred seats during booking
-- **Province & Sector Selection**: Select destinations by province and sector
-- **Booking Confirmation**: Instant confirmation via SMS and email
-- **Responsive Design**: Modern, user-friendly interface
+- **Guest Bookings**: Search routes, view schedules, book tickets (MTN/Airtel payment), receive SMS + email with QR ticket
+- **Operator Dashboard**: Create cash bookings, mark schedules as departed, view assigned routes
+- **Admin Dashboard**: Full CRUD for buses, routes, schedules, and operator assignments
+- **Real-time Seat Availability**: Live updates on remaining seats
+- **Auto-refund Cancellations**: Automatic refunds for cancellations >1 hour before departure
+- **Recurring Schedules**: Support for daily/weekly recurring schedules
 
-### Admin Dashboard
-- **Operator Management**: Add and manage bus operators
-- **Bus Management**: Add buses with plate numbers, drivers, and capacity
-- **Route Management**: Create routes with stopovers, distance, time estimates, and fuel costs
-- **Monitoring & Analytics**:
-  - View operator activity logs
-  - Revenue reports by bus
-  - Bus occupancy status tracking
-- **Secure Authentication**: Role-based access with bcrypt password hashing
+## Tech Stack
 
-### Operator Dashboard
-- **Passenger Check-in**: Mark passengers as checked in
-- **Trip Management**: Start trips and mark passenger drop-offs
-- **Action Logging**: Automatic logging of all operator actions for audit purposes
+- **Backend**: Python 3.10+, Django 4.x, Django REST Framework
+- **Database**: MySQL (using PyMySQL for easy Windows installation)
+- **Frontend**: Vanilla JavaScript, Responsive HTML/CSS
+- **SMS**: Twilio (placeholder credentials)
+- **Payments**: MTN + Airtel (mocked adapters, `PAYMENTS_MODE=mock|live`)
 
-## 📋 Prerequisites
+## Installation
 
-- **Python 3.x**
-- **MySQL Server** (MariaDB compatible)
-- **MySQL Connector** for Python
-- **bcrypt** library
+### Prerequisites
 
-## 🛠️ Installation
+- Python 3.10 or higher
+- MySQL 5.7+ or 8.0+
+- pip
 
-### Backend Setup (Django)
+### Database Setup (MySQL with PyMySQL)
 
-1. **Clone the repository**
+This project uses **PyMySQL** for easy installation across all platforms (no compilation required on Windows, minimal setup on Linux/Mac).
+
+#### Windows Setup
+
+1. **Install MySQL Server** (if not already installed):
+   - Download from: https://dev.mysql.com/downloads/mysql/
+   - Or use XAMPP/WAMP which includes MySQL
+   - Make sure MySQL service is running (check via Services or Task Manager)
+
+2. **Create MySQL database**:
+   ```sql
+   -- Open MySQL command line or MySQL Workbench
+   CREATE DATABASE travel_suite CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   ```
+   
+   Or using MySQL command line:
+   ```bash
+   mysql -u root -p
+   CREATE DATABASE travel_suite CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   EXIT;
+   ```
+
+#### Linux Setup
+
+1. **Install MySQL Server**:
+   ```bash
+   # Ubuntu/Debian
+   sudo apt update
+   sudo apt install mysql-server
+   
+   # Fedora/RHEL/CentOS
+   sudo dnf install mysql-server
+   # or
+   sudo yum install mysql-server
+   
+   # Arch Linux
+   sudo pacman -S mysql
+   ```
+
+2. **Start MySQL service**:
+   ```bash
+   # Ubuntu/Debian (systemd)
+   sudo systemctl start mysql
+   sudo systemctl enable mysql
+   
+   # Set root password (if not set during installation)
+   sudo mysql_secure_installation
+   ```
+
+3. **Create MySQL database**:
+   ```bash
+   mysql -u root -p
+   ```
+   ```sql
+   CREATE DATABASE travel_suite CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   EXIT;
+   ```
+
+#### macOS Setup
+
+1. **Install MySQL Server**:
+   ```bash
+   # Using Homebrew (recommended)
+   brew install mysql
+   
+   # Or download from: https://dev.mysql.com/downloads/mysql/
+   ```
+
+2. **Start MySQL service**:
+   ```bash
+   # Using Homebrew
+   brew services start mysql
+   
+   # Or manually
+   mysql.server start
+   ```
+
+3. **Set root password** (if not set):
+   ```bash
+   mysql_secure_installation
+   ```
+
+4. **Create MySQL database**:
+   ```bash
+   mysql -u root -p
+   ```
+   ```sql
+   CREATE DATABASE travel_suite CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   EXIT;
+   ```
+
+#### Note MySQL Credentials
+
+For all platforms, note your MySQL credentials:
+- Username (usually `root`)
+- Password (if set)
+- Host (usually `localhost`)
+- Port (usually `3306`)
+
+### Setup Steps
+
+1. **Clone the repository** (or extract files):
    ```bash
    git clone <repository-url>
-   cd Travel_Suite
+   cd RW_booking_system
    ```
 
-2. **Install Python dependencies**
+2. **Create a virtual environment**:
+   
+   **Windows**:
    ```bash
+   python -m venv venv
+   venv\Scripts\activate
+   ```
+   
+   **Linux/Mac**:
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+   
+   You should see `(venv)` in your terminal prompt when activated.
+
+3. **Install dependencies**:
+   ```bash
+   # Windows
    pip install -r requirements.txt
+   
+   # Linux/Mac (use pip3 if python3 is not default)
+   pip install -r requirements.txt
+   # or
+   pip3 install -r requirements.txt
+   ```
+   
+   **Note**: PyMySQL is included in requirements.txt and will be installed automatically. On Windows, no compilation is needed. On Linux/Mac, PyMySQL installs easily via pip.
+
+4. **Set up environment variables**:
+   
+   Create a `.env` file in the project root with the following content:
+   ```env
+   # Django Settings
+   SECRET_KEY=your-secret-key-here-change-in-production
+   DEBUG=True
+   ALLOWED_HOSTS=localhost,127.0.0.1
+   
+   # Database Configuration
+   DATABASE_NAME=travel_suite
+   DATABASE_USER=root
+   DATABASE_PASSWORD=your_mysql_password
+   DATABASE_HOST=localhost
+   DATABASE_PORT=3306
+   
+   # Payment Mode (mock for development, live for production)
+   PAYMENTS_MODE=mock
+   
+   # Twilio SMS (optional - use placeholders for MVP)
+   TWILIO_ACCOUNT_SID=your-twilio-account-sid
+   TWILIO_AUTH_TOKEN=your-twilio-auth-token
+   TWILIO_FROM_NUMBER=+1234567890
+   
+   # Email Settings (optional - use placeholders for MVP)
+   EMAIL_HOST=smtp.gmail.com
+   EMAIL_PORT=587
+   EMAIL_USE_TLS=True
+   EMAIL_HOST_USER=your-email@gmail.com
+   EMAIL_HOST_PASSWORD=your-app-password
+   EMAIL_FROM=noreply@travelsuite.rw
+   ```
+   
+   **Important**: Replace `your_mysql_password` with your actual MySQL root password (or leave empty if no password is set).
+   
+   **Platform-specific notes**:
+   - **Windows**: Use any text editor (Notepad, VS Code, etc.)
+   - **Linux/Mac**: Use `nano`, `vim`, or any text editor:
+     ```bash
+     nano .env
+     # or
+     vim .env
+     ```
+
+5. **Run migrations**:
+   ```bash
+   # Windows
+   python manage.py migrate
+   
+   # Linux/Mac
+   python manage.py migrate
+   # or if python3 is not default
+   python3 manage.py migrate
+   ```
+   
+   This will create all necessary database tables.
+
+6. **Create admin superuser**:
+   ```bash
+   # Windows
+   python manage.py createsuperuser
+   
+   # Linux/Mac
+   python manage.py createsuperuser
+   # or
+   python3 manage.py createsuperuser
+   ```
+   
+   You will be prompted to enter:
+   - Username (e.g., `admin`)
+   - Email (optional, e.g., `admin@travelsuite.rw`)
+   - Password (enter a strong password, e.g., `admin123` - change this in production!)
+   
+   **Example**:
+   ```
+   Username: admin
+   Email address: admin@travelsuite.rw
+   Password: ********
+   Password (again): ********
+   Superuser created successfully.
    ```
 
-3. **Initialize the database**
+7. **Seed sample data** (optional but recommended):
    ```bash
-   python manage.py migrate
+   # Windows
+   python manage.py seed_sample_data
+   
+   # Linux/Mac
+   python manage.py seed_sample_data
+   # or
+   python3 manage.py seed_sample_data
+   ```
+   
+   This creates sample districts, routes, buses, schedules, and operators for testing.
+
+8. **Generate future schedule occurrences**:
+   ```bash
+   # Windows
+   python manage.py generate_schedule_occurrences --days 60
+   
+   # Linux/Mac
+   python manage.py generate_schedule_occurrences --days 60
+   # or
+   python3 manage.py generate_schedule_occurrences --days 60
+   ```
+   
+   This ensures schedule occurrences are available for the next 60 days.
+
+9. **Run the development server**:
+   ```bash
+   # Windows
+   python manage.py runserver
+   
+   # Linux/Mac
+   python manage.py runserver
+   # or
+   python3 manage.py runserver
+   ```
+   
+   The server will start on `http://127.0.0.1:8000/` by default.
+
+10. **Access the application**:
+    - **Frontend (Guest)**: http://localhost:8000/
+    - **Admin Dashboard**: http://localhost:8000/admin/
+    - **Django Admin (Advanced)**: http://localhost:8000/django-admin/
+    - **Operator Login**: http://localhost:8000/operator/login/
+    - **API**: http://localhost:8000/api/
+
+### Platform-Specific Notes
+
+#### Windows
+- Use `python` command (not `python3`)
+- Virtual environment activation: `venv\Scripts\activate`
+- No compilation needed for PyMySQL
+- MySQL can be installed via installer or XAMPP/WAMP
+
+#### Linux
+- May need to use `python3` instead of `python`
+- Virtual environment activation: `source venv/bin/activate`
+- May need to install Python development headers for some packages:
+  ```bash
+  # Ubuntu/Debian
+  sudo apt install python3-dev python3-pip
+  
+  # Fedora/RHEL
+  sudo dnf install python3-devel python3-pip
+  ```
+- PyMySQL installs easily via pip
+
+#### macOS
+- Use `python3` command (Python 2 is deprecated)
+- Virtual environment activation: `source venv/bin/activate`
+- Install Homebrew if not already installed: `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
+- PyMySQL installs easily via pip
+
+### Development Platform Note
+
+**Important**: This project was developed and tested on **Windows**. All setup instructions have been verified on Windows 10/11. The Linux and macOS instructions provided above are for cross-platform compatibility and should work, but if you encounter any platform-specific issues, please refer to the Troubleshooting section below.
+
+## Admin Access & Login
+
+### Creating an Admin User
+
+If you haven't created an admin user yet, or need to create additional admin users:
+
+```bash
+python manage.py createsuperuser
+```
+
+Follow the prompts to enter username, email, and password.
+
+**To create admin from Django shell** (alternative method):
+```bash
+python manage.py shell
+```
+
+Then in the shell:
+```python
+from accounts.models import User
+User.objects.create_superuser(
+    username='admin',
+    email='admin@travelsuite.rw',
+    password='your_secure_password'
+)
+exit()
+```
+
+### Logging In as Admin
+
+1. **Navigate to admin login page**:
+   - URL: http://localhost:8000/admin/
+   - Or click "Admin Login" from the frontend
+
+2. **Enter credentials**:
+   - Username: The username you created (e.g., `admin`)
+   - Password: The password you set
+
+3. **Access admin dashboard**:
+   - After successful login, you'll be redirected to `/admin/dashboard/`
+   - Here you can manage:
+     - Districts (locations)
+     - Routes
+     - Buses
+     - Schedule Recurrences
+     - Bookings
+     - Operators (create, edit, delete operator accounts)
+     - Operator Assignments (assign operators to specific routes)
+
+### Admin vs Django Admin
+
+- **Custom Admin Dashboard** (`/admin/`): User-friendly interface for managing the booking system
+- **Django Admin** (`/django-admin/`): Advanced Django admin interface for database-level management
+
+Both require the same superuser credentials.
+
+### Operator Management
+
+**Important**: Operators must be created and managed by administrators. Operators cannot self-register.
+
+#### Creating Operators (Admin Only)
+
+1. **Log in to the admin dashboard**: http://localhost:8000/admin/
+2. **Navigate to the "Operators" section** in the admin dashboard
+3. **Click "Add Operator"** button
+4. **Fill in operator details**:
+   - Username (must be unique)
+   - Password (for operator login)
+   - Full Name
+   - Phone Number
+   - Email (optional)
+5. **Click "Save"** to create the operator account
+
+#### Assigning Operators to Routes (Admin Only)
+
+After creating an operator, you must assign them to specific routes:
+
+1. **Navigate to "Operator Assignments"** section in the admin dashboard
+2. **Click "Add Assignment"** button
+3. **Select**:
+   - Operator (from dropdown)
+   - Route (from dropdown)
+4. **Click "Save"** to assign the operator to that route
+
+**Note**: Operators can only view and manage bookings for routes they are assigned to. They cannot access routes they are not assigned to.
+
+#### Operator Login
+
+Once an operator account is created by an admin, operators can log in:
+- URL: http://localhost:8000/operator/login/
+- Credentials: Username and password set by the admin
+- Default operator (from seed data): `operator1` / `operator123`
+
+**Operator Capabilities**:
+- View assigned routes only
+- Create cash bookings for assigned routes
+- Mark schedules as departed
+- View bookings for assigned routes
+- Cancel bookings (if cancellable)
+
+## Environment Variables
+
+Create a `.env` file in the project root with these variables:
+
+**Required Variables**:
+- `DATABASE_NAME`: MySQL database name (default: `travel_suite`)
+- `DATABASE_USER`: MySQL username (default: `root`)
+- `DATABASE_PASSWORD`: MySQL password (leave empty if no password)
+- `DATABASE_HOST`: MySQL host (default: `localhost`)
+- `DATABASE_PORT`: MySQL port (default: `3306`)
+- `SECRET_KEY`: Django secret key (generate a new one for production)
+
+**Optional Variables**:
+- `PAYMENTS_MODE`: Set to `mock` (default) or `live` for production
+- `TWILIO_*`: Twilio SMS credentials (placeholders work for MVP)
+- `EMAIL_*`: SMTP settings for email notifications (placeholders work for MVP)
+- `DEBUG`: Set to `True` for development, `False` for production
+- `ALLOWED_HOSTS`: Comma-separated list of allowed hosts
+
+## Running Tests
+
+```bash
+python manage.py test
+```
+
+Or run specific test modules:
+```bash
+python manage.py test bookings.tests
+python manage.py test payments.tests
+```
+
+## Payment Mode
+
+The system supports two payment modes:
+
+- **`mock`** (default): Simulates payment processing with delays and testable transaction IDs. Use this for development and testing.
+- **`live`**: Connects to real MTN/Airtel payment APIs. Replace mock adapter methods with actual API calls.
+
+To toggle payment mode, set `PAYMENTS_MODE=mock` or `PAYMENTS_MODE=live` in your `.env` file.
+
+## API Documentation
+
+See `postman_collection.json` for API endpoint documentation and sample requests/responses.
+
+Key endpoints:
+- `GET /api/routes/?from=<location>` - Search routes
+- `GET /api/schedules/?route_id=...&date=...` - Get schedule occurrences
+- `POST /api/bookings/` - Create guest booking
+- `POST /api/bookings/<id>/cancel/` - Cancel booking
+- `GET /api/bookings/<id>/status/` - Get booking status
+- `POST /api/operator/bookings/` - Create cash booking (operator)
+- `POST /api/operator/schedules/<id>/mark_departed/` - Mark schedule as departed
+
+## Performance & Reliability
+
+### Backend Optimizations
+
+- **Query Optimization**: Uses `select_related` and `prefetch_related` for efficient schedule → bus → route queries
+- **Database Transactions**: Uses `select_for_update` when creating bookings to prevent overbooking
+- **Caching**: Suggested caching for route list and schedule list (per-route cache TTL 1-5 minutes)
+- **Pagination**: All list endpoints support pagination
+
+### Frontend Optimizations
+
+- **Real-time Updates**: Frontend polls remaining seats every 30 seconds on schedule pages
+- **Optimistic UI**: Updates UI immediately after booking, then syncs with server
+- **Async Operations**: All API calls use `fetch` with `async/await`
+
+### Background Tasks
+
+For production, heavy work (email + SMS sending) should be moved to background workers (e.g., Celery). The MVP includes a `send_notification_async()` wrapper that can be connected to a task queue.
+
+### Schedule Occurrence Generation
+
+Schedule occurrences are automatically generated when creating a new schedule recurrence (60 days ahead). To extend future occurrences or regenerate them, run:
+
+```bash
+python manage.py generate_schedule_occurrences --days 60
+```
+
+**Recommended**: Set up a daily cron job to run this command to ensure future schedule occurrences are always available:
+
+```bash
+# Example cron job (runs daily at 2 AM)
+0 2 * * * cd /path/to/travel_suite && /path/to/venv/bin/python manage.py generate_schedule_occurrences --days 60
+```
+
+## Project Structure
+
+```
+travel_suite/
+├── accounts/          # User accounts app
+├── routes/            # Routes and locations app
+├── buses/             # Bus management app
+├── bookings/          # Booking management app
+├── payments/          # Payment adapters (MTN, Airtel)
+├── notifications/     # SMS and email notifications
+├── operators/         # Operator management app
+├── api/               # API routing and views
+├── static/            # Static files (CSS, JS, images)
+├── templates/         # HTML templates
+├── fixtures/          # Test fixtures
+└── manage.py
+```
+
+## Security Considerations
+
+See `SECURITY.md` for production security considerations including:
+- Environment variable management
+- HTTPS requirements
+- Rate limiting
+- Idempotency keys
+- Webhook validation
+
+## Design Guide
+
+See `design-guide.md` for the African-inspired design system, color palette, typography, and CSS utilities.
+
+## Troubleshooting
+
+### Database Connection Issues
+
+**Error**: `django.db.utils.OperationalError: (2003, "Can't connect to MySQL server")`
+
+**Solutions**:
+1. **Check MySQL is running**:
+   ```bash
+   # Windows (check Services)
+   services.msc  # Look for MySQL service
+   
+   # Or check via command line
+   mysql -u root -p
+   ```
+
+2. **Verify database exists**:
+   ```sql
+   SHOW DATABASES;
+   ```
+   Make sure `travel_suite` is listed.
+
+3. **Check credentials in `.env`**:
+   - Verify `DATABASE_USER` and `DATABASE_PASSWORD` are correct
+   - If MySQL has no password, leave `DATABASE_PASSWORD` empty in `.env`
+
+4. **Test connection manually**:
+   ```bash
+   mysql -u root -p travel_suite
+   ```
+
+**Error**: `ModuleNotFoundError: No module named 'pymysql'`
+
+**Solution**:
+```bash
+# Make sure virtual environment is activated
+venv\Scripts\activate  # Windows
+source venv/bin/activate  # Linux/Mac
+
+# Reinstall requirements
+pip install -r requirements.txt
+```
+
+**Error**: `django.db.utils.ProgrammingError: (1146, "Table 'travel_suite.xxx' doesn't exist")`
+
+**Solution**:
+```bash
+# Run migrations
+python manage.py migrate
+```
+
+### Migration Issues
+
+**Error**: `django.db.migrations.exceptions.InconsistentMigrationHistory`
+
+**Solution**:
+```bash
+# Reset migrations (WARNING: This deletes data!)
+python manage.py migrate --fake-initial
+
+# Or if that doesn't work, reset completely:
+python manage.py migrate accounts zero
+python manage.py migrate
+```
+
+### Admin Login Issues
+
+**Error**: "Invalid username or password"
+
+**Solutions**:
+1. **Verify user exists**:
+   ```bash
+   python manage.py shell
+   ```
+   ```python
+   from accounts.models import User
+   User.objects.filter(is_superuser=True)
+   # Should show your admin user
+   ```
+
+2. **Reset admin password**:
+   ```bash
+   python manage.py changepassword admin
+   ```
+
+3. **Create new admin**:
+   ```bash
    python manage.py createsuperuser
    ```
 
-4. **Run the Django development server**
-   ```bash
-   python manage.py runserver
-   ```
-   - Backend API: `http://localhost:8000/api/`
-   - Admin Dashboard: `http://localhost:8000/admin/`
+**Error**: "Permission denied" on admin dashboard
 
-### Database Configuration
+**Solution**:
+- Make sure the user has `is_staff=True` and `is_superuser=True`:
+  ```bash
+  python manage.py shell
+  ```
+  ```python
+  from accounts.models import User
+  user = User.objects.get(username='admin')
+  user.is_staff = True
+  user.is_superuser = True
+  user.save()
+  ```
 
-**Current**: SQLite (for development)
+### Static Files Not Loading
 
-**For Production**: Configure MySQL in `config/settings.py`:
-```python
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'travel_suite_db',
-        'USER': 'your_mysql_user',
-        'PASSWORD': 'your_mysql_password',
-        'HOST': 'localhost',
-        'PORT': '3306',
-    }
-}
+**Error**: CSS/JS files return 404
+
+**Solution**:
+```bash
+# Collect static files
+python manage.py collectstatic --noinput
+
+# Or in development, make sure DEBUG=True in settings
 ```
 
-See **BACKEND_SETUP.md** for detailed backend documentation.
+### Port Already in Use
 
-## 🚦 Usage
+**Error**: `Error: That port is already in use`
 
-### Running the Booking System
+**Solution**:
+```bash
+# Use a different port
+python manage.py runserver 8001
 
-1. **Start the backend application**
-   ```bash
-   python booking_system.py
-   ```
+# Or kill the process using port 8000
+# Windows:
+netstat -ano | findstr :8000
+taskkill /PID <PID> /F
 
-2. **Login with default credentials**
-   - **Admin**: 
-     - Email: `admin@booking.com`
-     - Password: `Admin@123`
-   - **Operator**: 
-     - Email: `operator@booking.com`
-     - Password: `Operator@123`
-
-3. **Access the frontend**
-   - Open `Frontend/index.html` in a web browser
-   - The CSS stylesheet (`Frontend/style.css`) is automatically linked
-   - Navigate through the booking interface to make reservations
-
-### Admin Functions
-
-1. **Add Operator**: Create new operator accounts with secure authentication
-2. **Add Bus**: Register new buses with plate numbers, drivers, and capacity
-3. **Add Route & Stopovers**: Define routes with multiple stopovers and pricing
-4. **View Operators**: List all registered operators
-5. **View Operator Logs**: Monitor recent operator activities
-6. **View Revenue Report**: Analyze revenue by bus
-7. **View Bus Occupancy**: Track seat utilization across all buses
-
-### Operator Functions
-
-1. **Check in Passenger**: Mark passengers as checked in using booking ID
-2. **Mark Passenger Dropped**: Update booking status when passenger completes journey
-3. **Start Trip**: Log trip initiation
-
-## 📊 Database Schema
-
-The system uses the following main tables:
-
-- `admins` - Administrator accounts
-- `operators` - Bus operator accounts
-- `passengers` - Passenger information
-- `buses` - Bus fleet details
-- `routes` - Route definitions
-- `stopovers` - Route stopover points
-- `bus_routes` - Bus-route assignments
-- `bookings` - Ticket bookings and status
-- `operator_actions` - Audit log of operator activities
-
-## 🔒 Security Features
-
-- **Password Hashing**: All passwords are hashed using bcrypt
-- **Role-Based Access**: Separate admin and operator dashboards
-- **Audit Logging**: All operator actions are logged with timestamps
-- **Secure Authentication**: Email-based login with encrypted passwords
-
-## 📁 Project Structure
-
-```
-Travel_Suite/
-├── booking_system.py       # Main application (Admin & Operator dashboards)
-├── real_database.py        # Database setup and initialization script
-├── Frontend/
-│   ├── index.html          # Customer-facing booking website
-│   └── style.css           # Frontend stylesheet
-└── README.md               # This file
+# Linux/Mac:
+lsof -ti:8000 | xargs kill
 ```
 
-## 🌍 Supported Locations
+### PyMySQL Import Errors
 
-- **Departure Stations**: Nyabugogo, Remera
-- **Destinations**: All provinces and sectors across Rwanda
-- **Operating Hours**: Daily 6:00 AM - 9:00 PM (21:00)
+**Error**: `ImportError: No module named 'MySQLdb'`
 
-## 🤝 Partnership
+**Solution**:
+- Make sure `travel_suite/__init__.py` contains:
+  ```python
+  import pymysql
+  pymysql.install_as_MySQLdb()
+  ```
+- Verify PyMySQL is installed:
+  ```bash
+  pip list | grep -i pymysql
+  ```
 
-TravelSuite operates in partnership with **Volcano Express**, providing quality bus services across Rwanda.
+### Schedule Occurrences Not Showing
 
-## 📝 Default Credentials
+**Problem**: No schedules available for future dates
 
-**⚠️ IMPORTANT**: Change default passwords in production environments!
-
-- **Admin Account**:
-  - Email: `admin@booking.com`
-  - Password: `Admin@123`
-
-- **Operator Account**:
-  - Email: `operator@booking.com`
-  - Password: `Operator@123`
-
-## 🔧 Configuration
-
-Update the following constants in both `booking_system.py` and `real_database.py` to match your MySQL setup:
-
-```python
-DB_HOST = "localhost"
-DB_USER = "app_user"
-DB_PASSWORD = "AppUser@123"
-DB_NAME = "transport_payments_db"
+**Solution**:
+```bash
+# Generate schedule occurrences
+python manage.py generate_schedule_occurrences --days 60
 ```
 
-## 📞 Contact
+### Payment/SMS/Email Errors
 
-- **Email**: info@travelsuite.rw
-- **Phone**: +250 788 XXX XXX
-- **Locations**: 
-  - Nyabugogo Bus Station, Kigali
-  - Remera Bus Terminal, Kigali
+**Note**: In MVP mode (`PAYMENTS_MODE=mock`), payment processing is simulated. SMS and email will fail with placeholder credentials, but bookings will still work.
 
-## 📄 License
+**For production**:
+- Replace mock adapters in `payments/mt_n_adapter.py` and `payments/airtel_adapter.py`
+- Add real Twilio credentials to `.env`
+- Configure SMTP settings in `.env`
 
-[Specify your license here]
+### Common Windows-Specific Issues
 
-## 🚧 Future Enhancements
+**Issue**: Virtual environment not activating
 
-- Payment gateway integration
-- Real-time seat availability
-- SMS/Email notification system
-- Mobile application
-- Advanced reporting and analytics
-- Multi-language support
+**Solution**:
+```powershell
+# PowerShell execution policy
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 
----
+# Then activate
+.\venv\Scripts\Activate.ps1
+```
 
-**Note**: This is a command-line based administrative system. The frontend (`Frontend/index.html`) is a static HTML interface that would need backend API integration for full functionality.
+**Issue**: `mysqlclient` installation fails
+
+**Solution**: This project uses PyMySQL instead of mysqlclient, so this shouldn't occur. If you see this error, make sure you're using the correct `requirements.txt`.
+
+### Getting Help
+
+1. **Check Django logs**: Look at the terminal output when running `python manage.py runserver`
+2. **Check database**: Verify tables exist with `SHOW TABLES;` in MySQL
+3. **Verify environment**: Make sure `.env` file exists and has correct values
+4. **Check Python version**: `python --version` should show 3.10 or higher
+5. **Verify virtual environment**: Make sure it's activated (you should see `(venv)` in your terminal)
+
+## License
+
+This is an MVP for demonstration purposes.
 
