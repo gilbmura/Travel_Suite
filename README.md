@@ -173,7 +173,7 @@ For all platforms, note your MySQL credentials:
 1. **Clone the repository** (or extract files):
    ```bash
    git clone <repository-url>
-   cd RW_booking_system
+   cd Travel_Suite
    ```
 
 2. **Create a virtual environment**:
