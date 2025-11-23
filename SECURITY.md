@@ -1,6 +1,6 @@
 # Security Considerations for Travel Suite
 
-This document outlines security considerations and best practices for deploying Travel Suite in production.
+This document outlines security considerations and best practices for deploying Travel Suite in production. 
 
 ## Environment Variables
 
