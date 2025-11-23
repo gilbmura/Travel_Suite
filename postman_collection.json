@@ -1,0 +1,238 @@
+{
+  "info": {
+    "name": "Travel Suite API",
+    "description": "API collection for Travel Suite MVP",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Districts",
+      "item": [
+        {
+          "name": "List Districts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/districts/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "districts", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Routes",
+      "item": [
+        {
+          "name": "List Routes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/routes/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "routes", ""]
+            }
+          }
+        },
+        {
+          "name": "Search Routes by Origin",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/routes/?from=Kigali",
+              "host": ["{{base_url}}"],
+              "path": ["api", "routes", ""],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "Kigali"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Schedules",
+      "item": [
+        {
+          "name": "List Schedules",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/schedules/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules", ""]
+            }
+          }
+        },
+        {
+          "name": "Get Schedules by Route",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/schedules/?route_id=1&date=2024-01-15",
+              "host": ["{{base_url}}"],
+              "path": ["api", "schedules", ""],
+              "query": [
+                {
+                  "key": "route_id",
+                  "value": "1"
+                },
+                {
+                  "key": "date",
+                  "value": "2024-01-15"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bookings",
+      "item": [
+        {
+          "name": "Create Booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"passenger_name\": \"John Doe\",\n  \"phone_number\": \"+250788123456\",\n  \"email\": \"john@example.com\",\n  \"schedule_occurrence_id\": 1,\n  \"payment_method\": \"mtn\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/bookings/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "bookings", ""]
+            }
+          }
+        },
+        {
+          "name": "Get Booking Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/bookings/{{booking_id}}/status/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "bookings", "{{booking_id}}", "status", ""]
+            }
+          }
+        },
+        {
+          "name": "Cancel Booking",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/bookings/{{booking_id}}/cancel/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "bookings", "{{booking_id}}", "cancel", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Operator",
+      "item": [
+        {
+          "name": "Create Cash Booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "sessionid={{session_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"passenger_name\": \"Jane Smith\",\n  \"phone_number\": \"+250788654321\",\n  \"email\": \"jane@example.com\",\n  \"schedule_occurrence_id\": 1,\n  \"payment_method\": \"cash\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/operator/bookings/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "operator", "bookings", ""]
+            }
+          }
+        },
+        {
+          "name": "Get Route Bookings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "sessionid={{session_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/operator/bookings/route_bookings/?route_id=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "operator", "bookings", "route_bookings", ""],
+              "query": [
+                {
+                  "key": "route_id",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mark Schedule as Departed",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "sessionid={{session_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/operator/schedules/1/mark_departed/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "operator", "schedules", "1", "mark_departed", ""]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "booking_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "session_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
+
