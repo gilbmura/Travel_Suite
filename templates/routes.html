@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Routes - Travel Suite</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="logo">Travel Suite</div>
+            <nav>
+                <a href="/">Home</a>
+                <a href="/routes/">Routes</a>
+                <a href="/operator/login/">Operator</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container" style="margin-top: 2rem;">
+        <h1>Available Routes</h1>
+        <div id="routesContainer" class="grid grid-2"></div>
+    </div>
+
+    {% load static %}
+    <script src="{% static 'js/main.js' %}"></script>
+    <script>
+        (async () => {
+            const routesContainer = document.getElementById('routesContainer');
+            routesContainer.innerHTML = '<div class="spinner"></div>';
+            
+            try {
+                const routes = await TravelSuite.searchRoutes();
+                routesContainer.innerHTML = routes.map(route => `
+                    <div class="card">
+                        <h3>${route.name}</h3>
+                        <p><strong>From:</strong> ${route.origin.name}</p>
+                        <p><strong>To:</strong> ${route.destination.name}</p>
+                        ${route.distance_km ? `<p><strong>Distance:</strong> ${route.distance_km} km</p>` : ''}
+                        <a href="/schedules/?route_id=${route.id}" class="btn btn-primary">View Schedules</a>
+                    </div>
+                `).join('');
+            } catch (error) {
+                routesContainer.innerHTML = `<div class="alert alert-error">${error.message || 'Failed to load routes'}</div>`;
+            }
+        })();
+    </script>
+</body>
+</html>
+

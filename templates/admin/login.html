@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - Travel Suite</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="logo">Travel Suite</div>
+            <nav>
+                <a href="/">Home</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container" style="margin-top: 4rem; max-width: 500px;">
+        <div class="card">
+            <h2>Admin Login</h2>
+            {% if error %}
+            <div class="alert alert-error" style="margin-bottom: 1rem;">{{ error }}</div>
+            {% endif %}
+            
+            <form method="post" action="{% url 'admin-login' %}">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                
+                <input type="hidden" name="next" value="/admin/dashboard/">
+                
+                <button type="submit" class="btn btn-primary">Login</button>
+            </form>
+            
+            <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--color-border);">
+                <p style="font-size: 0.875rem; color: var(--color-text-light);">
+                    Need full Django admin? <a href="/django-admin/">Access Django Admin</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

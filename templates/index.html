@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Travel Suite - Book Your Journey</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="logo">Travel Suite</div>
+            <nav>
+                <a href="/">Home</a>
+                <a href="/routes/">Routes</a>
+                <a href="/operator/login/">Operator</a>
+            </nav>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="container">
+            <h1>Welcome to Travel Suite</h1>
+            <p>Your trusted partner for bus travel across Rwanda</p>
+        </div>
+    </section>
+
+    <div class="container">
+        <div class="search-section">
+            <h2>Find Your Route</h2>
+            <form id="searchForm">
+                <div class="form-group">
+                    <label for="fromLocation">From (District)</label>
+                    <select id="fromLocation" name="fromLocation" required>
+                        <option value="">Select a district...</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Search Routes</button>
+            </form>
+            <div id="errorMessage" class="error-message hidden"></div>
+        </div>
+
+        <div id="routesContainer" class="grid grid-2" style="margin-top: 2rem;"></div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 Travel Suite. All rights reserved.</p>
+        </div>
+    </footer>
+
+    {% load static %}
+    <script src="{% static 'js/main.js' %}"></script>
+    <script>
+        // Load districts into dropdown on page load
+        (async function() {
+            try {
+                const districts = await TravelSuite.loadDistricts();
+                const select = document.getElementById('fromLocation');
+                
+                if (districts.length === 0) {
+                    select.innerHTML = '<option value="">No districts available</option>';
+                    return;
+                }
+                
+                // Add districts to dropdown
+                districts.forEach(district => {
+                    const option = document.createElement('option');
+                    option.value = district.name;
+                    option.textContent = district.name;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Failed to load districts:', error);
+                const select = document.getElementById('fromLocation');
+                select.innerHTML = '<option value="">Error loading districts</option>';
+            }
+        })();
+        
+        document.getElementById('searchForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fromLocation = document.getElementById('fromLocation').value;
+            const errorDiv = document.getElementById('errorMessage');
+            const routesContainer = document.getElementById('routesContainer');
+            
+            if (!fromLocation) {
+                errorDiv.textContent = 'Please select a district';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+            
+            errorDiv.classList.add('hidden');
+            routesContainer.innerHTML = '<div class="spinner"></div>';
+            
+            try {
+                const routes = await TravelSuite.searchRoutes(fromLocation);
+                
+                if (routes.length === 0) {
+                    routesContainer.innerHTML = '<p>No routes found. Please try a different location.</p>';
+                    return;
+                }
+                
+                routesContainer.innerHTML = routes.map(route => `
+                    <div class="card">
+                        <h3>${route.name}</h3>
+                        <p><strong>From:</strong> ${route.origin.name}</p>
+                        <p><strong>To:</strong> ${route.destination.name}</p>
+                        ${route.distance_km ? `<p><strong>Distance:</strong> ${route.distance_km} km</p>` : ''}
+                        <a href="/schedules/?route_id=${route.id}" class="btn btn-primary">View Schedules</a>
+                    </div>
+                `).join('');
+            } catch (error) {
+                errorDiv.textContent = error.message || 'Failed to search routes';
+                errorDiv.classList.remove('hidden');
+                routesContainer.innerHTML = '';
+            }
+        });
+    </script>
+</body>
+</html>
+
