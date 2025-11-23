@@ -17,7 +17,7 @@ A Rwanda-focused travel booking system with real-time seat availability, operato
 
 ### What Works in MVP Mode
 
-✅ **Fully Functional:**
+**Fully Functional:**
 - Route and schedule management
 - Booking creation and management
 - Seat availability tracking
@@ -26,7 +26,7 @@ A Rwanda-focused travel booking system with real-time seat availability, operato
 - Database operations
 - All core booking features
 
-❌ **Not Configured (Expected in MVP):**
+**Not Configured (Expected in MVP):**
 - **SMS Notifications (Twilio)**: Uses placeholder credentials - SMS will not be sent, but bookings will still work
 - **Email Notifications**: Uses placeholder SMTP settings - emails will not be sent, but bookings will still work
 - **Real Payment Processing**: Payments are mocked by default - transactions are simulated
